@@ -1,0 +1,55 @@
+:root {
+  --paper: #f4efe4;
+  --paper-deep: #e5dccb;
+  --ink: #1d1a16;
+  --muted: #6c6256;
+  --line: #cbbfae;
+  --white: #fffaf0;
+  --accent-w: #d9c77f;
+  --accent-u: #648aa8;
+  --accent-b: #6f6372;
+  --accent-r: #a85f48;
+  --accent-g: #627f55;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --shadow: 0 18px 45px rgb(29 26 22 / 10%);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Aptos, "Segoe UI", sans-serif;
+}
+
+.workbenchShell { min-height: 100vh; padding: 24px; }
+
+.heroPanel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  box-shadow: var(--shadow);
+  padding: 32px;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 8vw, 6rem);
+  line-height: 0.9;
+  margin: 0;
+}
+
+.lede {
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
