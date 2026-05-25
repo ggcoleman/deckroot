@@ -1,10 +1,13 @@
-﻿import { access, mkdtemp, rm } from "node:fs/promises";
+﻿import { access, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fixtureCard, fixtureDeck } from "@/domain/decks/demo-fixtures";
 import { createFileCache, createMemoryCache } from "@/domain/shared/cache";
 import { createRateLimiter } from "@/domain/shared/rate-limit";
+
+const basicLandNames = new Set(["Island", "Plains", "Swamp", "Mountain", "Forest", "Wastes"]);
+const skippableSymlinkCodes = new Set(["EPERM", "EACCES", "ENOTSUP", "ENOSYS", "EINVAL"]);
 
 afterEach(() => {
   vi.useRealTimers();
@@ -37,6 +40,29 @@ describe("provider infrastructure", () => {
     }
   });
 
+  it("rejects pre-existing provider directory symlinks that resolve outside the cache root", async () => {
+    const root = await mkdtemp(join(tmpdir(), "deckroot-cache-"));
+    const outside = await mkdtemp(join(tmpdir(), "deckroot-cache-outside-"));
+    const providerDir = join(root, "linked-provider");
+
+    try {
+      await mkdir(outside, { recursive: true });
+      try {
+        await symlink(outside, providerDir, process.platform === "win32" ? "junction" : "dir");
+      } catch (error) {
+        if (skippableSymlinkCodes.has((error as NodeJS.ErrnoException).code ?? "")) return;
+        throw error;
+      }
+
+      const cache = createFileCache(root);
+      await expect(cache.set("linked-provider", "escape", { ok: true }, 60_000)).rejects.toThrow();
+      await expect(cache.get("linked-provider", "escape")).resolves.toBeNull();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
   it("provides deterministic card and deck fixtures", () => {
     expect(fixtureCard("Sol Ring").name).toBe("Sol Ring");
 
@@ -44,6 +70,16 @@ describe("provider infrastructure", () => {
     expect(deck.cards).toHaveLength(100);
     expect(deck.cards[0]?.card.name).toBe("Alela, Artful Provocateur");
     expect(deck.cards.filter((entry) => entry.role.includes("land")).length).toBeGreaterThanOrEqual(34);
+
+    const counts = new Map<string, number>();
+    for (const entry of deck.cards) {
+      counts.set(entry.card.name, (counts.get(entry.card.name) ?? 0) + 1);
+    }
+
+    const nonBasicDuplicates = [...counts]
+      .filter(([name, count]) => count > 1 && !basicLandNames.has(name))
+      .map(([name]) => name);
+    expect(nonBasicDuplicates).toEqual([]);
   });
 
   it("queues calls through the rate limiter", async () => {
@@ -110,5 +146,3 @@ describe("provider infrastructure", () => {
     expect(events).toEqual(["first", "second"]);
   });
 });
-
-
