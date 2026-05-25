@@ -13,6 +13,12 @@ describe("owned-list import", () => {
     ]);
   });
 
+  it("parses 1x text quantities", () => {
+    expect(parseImportedList("1x Sol Ring").rows).toMatchObject([
+      { quantity: 1, name: "Sol Ring" }
+    ]);
+  });
+
   it("parses ManaBox CSV exports", () => {
     const csv = "Name,Quantity,Set code,Collector number\nSol Ring,1,CMM,400\nIsland,10,DMU,278";
     expect(parseImportedList(csv).rows).toMatchObject([
@@ -32,6 +38,28 @@ describe("owned-list import", () => {
     ]);
     expect(result.warnings).toEqual([
       { line: 3, raw: "Broken Row,1,ABC,123,EXTRA", message: "Could not parse CSV card name and quantity." }
+    ]);
+  });
+
+  it("preserves text warning line numbers with leading blank lines", () => {
+    const result = parseImportedList("\n1 Sol Ring\nnot a usable row ###");
+
+    expect(result.rows).toMatchObject([{ quantity: 1, name: "Sol Ring" }]);
+    expect(result.warnings).toEqual([
+      { line: 3, raw: "not a usable row ###", message: "Could not parse a quantity and card name." }
+    ]);
+  });
+
+  it("preserves CSV warning line numbers with leading blank lines", () => {
+    const csv = "\nName,Quantity,Set code,Collector number\nSol Ring,1,CMM,400\nBroken Row,1,ABC,123,EXTRA";
+    const result = parseImportedList(csv);
+
+    expect(result.detectedFormat).toBe("csv");
+    expect(result.rows).toMatchObject([
+      { quantity: 1, name: "Sol Ring", setCode: "CMM", collectorNumber: "400" }
+    ]);
+    expect(result.warnings).toEqual([
+      { line: 4, raw: "Broken Row,1,ABC,123,EXTRA", message: "Could not parse CSV card name and quantity." }
     ]);
   });
 

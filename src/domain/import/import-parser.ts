@@ -17,13 +17,12 @@ export type ImportParseResult = { rows: ImportedRow[]; warnings: ImportWarning[]
 const sections = new Set(["commander", "creatures", "instants", "sorceries", "artifacts", "enchantments", "planeswalkers", "lands"]);
 
 export function parseImportedList(input: string): ImportParseResult {
-  const trimmed = input.trim();
-  if (!trimmed) return { rows: [], warnings: [], detectedFormat: "text" };
-  return looksLikeCsv(trimmed) ? parseCsv(trimmed) : parseText(trimmed);
+  if (!input.trim()) return { rows: [], warnings: [], detectedFormat: "text" };
+  return looksLikeCsv(input) ? parseCsv(input) : parseText(input);
 }
 
 function looksLikeCsv(input: string): boolean {
-  const first = input.split(/\r?\n/, 1)[0].toLowerCase();
+  const first = input.split(/\r?\n/).find((line) => line.trim())?.toLowerCase() ?? "";
   return first.includes("name") && (first.includes("quantity") || first.includes("count"));
 }
 
@@ -31,11 +30,12 @@ function parseCsv(input: string): ImportParseResult {
   const rows: ImportedRow[] = [];
   const warnings: ImportWarning[] = [];
   const lines = input.split(/\r?\n/);
-  const headers = parseCsvLine(lines[0]) ?? [];
+  const headerIndex = lines.findIndex((line) => line.trim());
+  const headers = headerIndex >= 0 ? parseCsvLine(lines[headerIndex]) ?? [] : [];
 
-  lines.slice(1).forEach((lineText, index) => {
+  lines.slice(headerIndex + 1).forEach((lineText, index) => {
     const raw = lineText.trim();
-    const line = index + 2;
+    const line = headerIndex + index + 2;
     if (!raw) return;
 
     const values = parseCsvLine(raw);
@@ -93,7 +93,7 @@ function parseText(input: string): ImportParseResult {
       rows.push({ line, raw, quantity: 1, name: commanderPrefix[1].trim(), sourceSection: "commander", commander: true });
       return;
     }
-    const match = raw.match(/^(\d+)\s+x?\s*(.+?)(?:\s+\(([A-Z0-9]{2,5})\)\s*(\S+))?$/i);
+    const match = raw.match(/^(\d+)\s*x?\s+(.+?)(?:\s+\(([A-Z0-9]{2,5})\)\s*(\S+))?$/i);
     if (!match) {
       warnings.push({ line, raw, message: "Could not parse a quantity and card name." });
       return;
