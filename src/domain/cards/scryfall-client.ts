@@ -1,4 +1,4 @@
-import type { Card, CardPrice, Color } from "@/domain/cards/types";
+import type { Card, CardPrice, Color, ManaSymbol } from "@/domain/cards/types";
 import { normalize } from "@/domain/cards/card-catalog";
 import { scryfallCardSchema, scryfallSearchResponseSchema, type ScryfallCard } from "@/domain/cards/scryfall-schema";
 import type { ProviderCache } from "@/domain/shared/cache";
@@ -34,6 +34,8 @@ const mapPrices = (prices: ScryfallCard["prices"]): CardPrice => ({
   tix: parsePrice(prices.tix),
 });
 
+const cacheKeyInput = (value: string) => value.trim().toLowerCase();
+
 export function normalizeScryfallCard(raw: unknown): Card {
   const card = scryfallCardSchema.parse(raw);
   const firstFace = card.card_faces?.[0];
@@ -56,7 +58,7 @@ export function normalizeScryfallCard(raw: unknown): Card {
     prices: mapPrices(card.prices),
     purchaseUris: card.purchase_uris,
     imageUrl,
-    ...(card.produced_mana ? { producedMana: card.produced_mana as Color[] } : {}),
+    ...(card.produced_mana ? { producedMana: card.produced_mana as ManaSymbol[] } : {}),
   };
 }
 
@@ -77,11 +79,12 @@ export function createScryfallClient(options: ScryfallClientOptions): ScryfallCl
 
   return {
     async search(query) {
-      const cacheKey = `search:${query}`;
+      const normalizedQuery = cacheKeyInput(query);
+      const cacheKey = `search:${normalizedQuery}`;
       const cached = await options.cache.get<Card[]>("scryfall", cacheKey);
       if (cached) return cached;
 
-      const url = `${baseUrl}/cards/search?q=${encodeURIComponent(query)}`;
+      const url = `${baseUrl}/cards/search?q=${encodeURIComponent(query.trim())}`;
       const raw = scryfallSearchResponseSchema.parse(await getJson(url));
       const cards = raw.data.map(normalizeScryfallCard);
       await options.cache.set("scryfall", cacheKey, cards, ONE_HOUR_MS);
@@ -89,11 +92,12 @@ export function createScryfallClient(options: ScryfallClientOptions): ScryfallCl
     },
 
     async named(name) {
-      const cacheKey = `named:${name}`;
+      const normalizedName = cacheKeyInput(name);
+      const cacheKey = `named:${normalizedName}`;
       const cached = await options.cache.get<Card>("scryfall", cacheKey);
       if (cached) return cached;
 
-      const url = `${baseUrl}/cards/named?exact=${encodeURIComponent(name)}`;
+      const url = `${baseUrl}/cards/named?exact=${encodeURIComponent(name.trim())}`;
       const response = await options.limiter.schedule(() => fetchImpl(url, {
         headers: {
           Accept: "application/json",

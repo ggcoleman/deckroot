@@ -4,8 +4,9 @@ export type DeckRole = "land" | "ramp" | "draw" | "removal" | "wipe" | "protecti
 
 export function classifyRole(card: Card): DeckRole[] {
   const text = `${card.typeLine}\n${card.oracleText}`.toLowerCase();
+  const typeLine = card.typeLine.toLowerCase();
   const roles = new Set<DeckRole>();
-  if (text.includes("land")) roles.add("land");
+  if (typeLine.includes("land")) roles.add("land");
   if (text.includes("add ") && (text.includes("mana") || /\{[cwubrg]\}/.test(text) || Boolean(card.producedMana?.length))) roles.add("ramp");
   if (/draw (a|two|three|x|that many|cards?)/.test(text)) roles.add("draw");
   if (/(destroy|exile|counter target|return target).*(creature|artifact|enchantment|spell|permanent)/.test(text)) roles.add("removal");
@@ -16,4 +17,3 @@ export function classifyRole(card: Card): DeckRole[] {
   if (roles.size === 0) roles.add("utility");
   return [...roles];
 }
-

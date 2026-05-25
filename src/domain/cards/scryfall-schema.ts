@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const colorSchema = z.enum(["W", "U", "B", "R", "G"]);
+const manaSymbolSchema = z.enum(["W", "U", "B", "R", "G", "C"]);
 const nullableStringPriceSchema = z.union([z.string(), z.null()]);
 
 export const scryfallCardFaceSchema = z.object({
@@ -33,7 +34,7 @@ export const scryfallCardSchema = z.object({
   }).optional().default({}),
   image_uris: z.object({ normal: z.string().optional() }).optional(),
   card_faces: z.array(scryfallCardFaceSchema).optional(),
-  produced_mana: z.array(colorSchema).optional(),
+  produced_mana: z.array(manaSymbolSchema).optional(),
 });
 
 export const scryfallSearchResponseSchema = z.object({

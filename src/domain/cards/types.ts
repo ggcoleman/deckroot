@@ -1,4 +1,5 @@
-﻿export type Color = "W" | "U" | "B" | "R" | "G";
+export type Color = "W" | "U" | "B" | "R" | "G";
+export type ManaSymbol = Color | "C";
 export type CardPrice = { usd: number | null; eur: number | null; tix: number | null };
 export type PurchaseUris = { tcgplayer?: string; cardmarket?: string; cardhoarder?: string };
 
@@ -18,5 +19,5 @@ export type Card = {
   prices: CardPrice;
   purchaseUris: PurchaseUris;
   imageUrl: string | null;
-  producedMana?: Color[];
+  producedMana?: ManaSymbol[];
 };

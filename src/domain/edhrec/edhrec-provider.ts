@@ -1,4 +1,4 @@
-import type { CardCatalog } from "@/domain/cards/card-catalog";
+import { normalize, type CardCatalog } from "@/domain/cards/card-catalog";
 import type { ProviderCache } from "@/domain/shared/cache";
 import type { RateLimiter } from "@/domain/shared/rate-limit";
 import type { EdhrecProvider, EdhrecRecommendationRequest, EdhrecRecommendationResponse, EdhrecRecommendedCard } from "@/domain/edhrec/edhrec-types";
@@ -36,6 +36,7 @@ type LiveEdhrecOptions = {
 type LiveEdhrecCard = {
   name?: string;
   card?: string | { name?: string };
+  score?: number;
   synergyScore?: number;
   synergy?: number;
   inclusionRate?: number | null;
@@ -52,11 +53,39 @@ const slugifyCommander = (name: string) => name.toLowerCase().replace(/[^a-z0-9]
 
 const attributionUrl = (commanderName: string) => `${attributionBaseUrl}/${slugifyCommander(commanderName)}`;
 
+const cleanNames = (names: Array<string | undefined>) => names.map((name) => name?.trim()).filter((name): name is string => Boolean(name));
+
+const normalizedUniqueNames = (names: Array<string | undefined>) => {
+  const values = new Set<string>();
+  for (const name of cleanNames(names)) values.add(normalize(name));
+  return [...values].sort();
+};
+
+const displayUniqueNames = (names: Array<string | undefined>) => {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const name of cleanNames(names)) {
+    const key = normalize(name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    values.push(name);
+  }
+  return values;
+};
+
 const cacheKeyFor = (request: EdhrecRecommendationRequest) => JSON.stringify({
-  commanderName: request.commanderName,
-  partnerName: request.partnerName ?? null,
-  seedNames: [...request.seedNames].sort(),
+  commanders: normalizedUniqueNames([request.commanderName, request.partnerName]),
+  cards: normalizedUniqueNames(request.seedNames),
 });
+
+const liveRequestBody = (request: EdhrecRecommendationRequest) => {
+  const commanders = displayUniqueNames([request.commanderName, request.partnerName]);
+  return {
+    cards: displayUniqueNames(request.seedNames),
+    commanders,
+    name: commanders[0] ?? request.commanderName.trim(),
+  };
+};
 
 const liveCardName = (entry: LiveEdhrecCard): string | null => {
   if (typeof entry.name === "string") return entry.name;
@@ -110,7 +139,7 @@ export function createLiveEdhrecProvider(options: LiveEdhrecOptions): EdhrecProv
           "Content-Type": "application/json",
           "User-Agent": options.userAgent,
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(liveRequestBody(request)),
       }));
       if (!response.ok) throw new Error(`EDHREC request failed with ${response.status}`);
 
@@ -126,7 +155,7 @@ export function createLiveEdhrecProvider(options: LiveEdhrecOptions): EdhrecProv
         cards.push({
           card,
           name: card.name,
-          synergyScore: entry.synergyScore ?? entry.synergy ?? Math.max(0, 100 - index * 3),
+          synergyScore: entry.score ?? entry.synergyScore ?? entry.synergy ?? Math.max(0, 100 - index * 3),
           inclusionRate: entry.inclusionRate ?? entry.inclusion ?? null,
           sourceReason: entry.reason ?? `${card.name} was recommended by EDHREC for ${request.commanderName}.`,
         });
@@ -134,7 +163,7 @@ export function createLiveEdhrecProvider(options: LiveEdhrecOptions): EdhrecProv
 
       const result: EdhrecRecommendationResponse = {
         source: "live",
-        commanderName: request.commanderName,
+        commanderName: request.commanderName.trim(),
         cards,
         attributionUrl: attributionUrl(request.commanderName),
       };

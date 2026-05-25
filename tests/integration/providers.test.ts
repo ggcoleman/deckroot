@@ -1,10 +1,11 @@
-﻿import { access, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
+import { createScryfallClient, normalizeScryfallCard } from "@/domain/cards/scryfall-client";
 import { fixtureCard, fixtureDeck } from "@/domain/decks/demo-fixtures";
-import { createFixtureEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
+import { createFixtureEdhrecProvider, createLiveEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
 import { createFileCache, createMemoryCache } from "@/domain/shared/cache";
 import { createRateLimiter } from "@/domain/shared/rate-limit";
 
@@ -158,3 +159,101 @@ describe("edhrec fixture provider", () => {
     expect(recs.attributionUrl).toContain("edhrec.com");
   });
 });
+
+describe("scryfall adapter", () => {
+  it("normalizes colorless produced mana without adding color identity", () => {
+    const card = normalizeScryfallCard({
+      id: "scryfall-sol-ring",
+      oracle_id: "oracle-sol-ring",
+      name: "Sol Ring",
+      mana_cost: "{1}",
+      cmc: 1,
+      color_identity: [],
+      type_line: "Artifact",
+      oracle_text: "{T}: Add {C}{C}.",
+      legalities: { commander: "legal" },
+      prices: { usd: "1.25", eur: null, tix: null },
+      purchase_uris: {},
+      produced_mana: ["C"],
+    });
+
+    expect(card.colorIdentity).toEqual([]);
+    expect(card.producedMana).toEqual(["C"]);
+  });
+
+  it("uses normalized search and named cache keys", async () => {
+    const cache = createMemoryCache();
+    const limiter = createRateLimiter({ intervalMs: 0, maxConcurrent: 1 });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const card = {
+        id: "scryfall-sol-ring",
+        oracle_id: "oracle-sol-ring",
+        name: "Sol Ring",
+        mana_cost: "{1}",
+        cmc: 1,
+        color_identity: [],
+        type_line: "Artifact",
+        oracle_text: "{T}: Add {C}{C}.",
+        legalities: { commander: "legal" },
+        prices: { usd: "1.25", eur: null, tix: null },
+        purchase_uris: {},
+      };
+      return Response.json(url.includes("/cards/search") ? { data: [card] } : card);
+    });
+    const client = createScryfallClient({ cache, limiter, userAgent: "Deckroot Tests", fetchImpl });
+
+    await client.search(" Sol Ring ");
+    await client.search("sol ring");
+    await client.named(" Sol Ring ");
+    await client.named("sol ring");
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("edhrec live provider", () => {
+  it("posts endpoint-oriented fields and maps returned cards through the catalog", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ inRecs: [{ name: "Sol Ring", score: 100 }] }));
+    const provider = createLiveEdhrecProvider({
+      catalog: createFixtureCardCatalog(),
+      cache: createMemoryCache(),
+      limiter: createRateLimiter({ intervalMs: 0, maxConcurrent: 1 }),
+      userAgent: "Deckroot Tests",
+      fetchImpl,
+    });
+
+    const recs = await provider.getCommanderRecommendations({
+      commanderName: "Alela, Artful Provocateur",
+      partnerName: "Tegwyll, Duke of Splendor",
+      seedNames: ["Sol Ring"],
+    });
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+    expect(body.cards).toEqual(["Sol Ring"]);
+    expect(body.commanders).toEqual(["Alela, Artful Provocateur", "Tegwyll, Duke of Splendor"]);
+    expect(body.name).toBe("Alela, Artful Provocateur");
+    expect(body).not.toHaveProperty("commanderName");
+    expect(body).not.toHaveProperty("seedNames");
+    expect(recs.cards[0].name).toBe("Sol Ring");
+    expect(recs.cards[0].synergyScore).toBe(100);
+  });
+
+  it("normalizes commander and seed names for cache keys", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ inRecs: [{ name: "Sol Ring", score: 100 }] }));
+    const provider = createLiveEdhrecProvider({
+      catalog: createFixtureCardCatalog(),
+      cache: createMemoryCache(),
+      limiter: createRateLimiter({ intervalMs: 0, maxConcurrent: 1 }),
+      userAgent: "Deckroot Tests",
+      fetchImpl,
+    });
+
+    await provider.getCommanderRecommendations({ commanderName: " Alela, Artful Provocateur ", seedNames: ["Sol Ring", " sol ring "] });
+    const cached = await provider.getCommanderRecommendations({ commanderName: "alela artful provocateur", seedNames: ["SOL RING"] });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(cached.source).toBe("cache");
+  });
+});
+
