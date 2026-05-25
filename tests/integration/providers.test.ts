@@ -2,7 +2,9 @@
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
 import { fixtureCard, fixtureDeck } from "@/domain/decks/demo-fixtures";
+import { createFixtureEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
 import { createFileCache, createMemoryCache } from "@/domain/shared/cache";
 import { createRateLimiter } from "@/domain/shared/rate-limit";
 
@@ -144,5 +146,15 @@ describe("provider infrastructure", () => {
     await vi.advanceTimersByTimeAsync(100);
     await second;
     expect(events).toEqual(["first", "second"]);
+  });
+});
+
+describe("edhrec fixture provider", () => {
+  it("returns deterministic commander recommendations", async () => {
+    const provider = createFixtureEdhrecProvider(createFixtureCardCatalog());
+    const recs = await provider.getCommanderRecommendations({ commanderName: "Alela, Artful Provocateur", seedNames: ["Sol Ring"] });
+    expect(recs.source).toBe("fixture");
+    expect(recs.cards[0].name).toBe("Sol Ring");
+    expect(recs.attributionUrl).toContain("edhrec.com");
   });
 });
