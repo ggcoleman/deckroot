@@ -53,5 +53,3 @@ export function CandidateBoard({ candidates, selectedCandidateId }: CandidateBoa
     </section>
   );
 }
-
-

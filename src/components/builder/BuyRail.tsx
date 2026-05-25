@@ -54,4 +54,3 @@ function BuyItem({ item }: { item: BuyListItemView }) {
     </article>
   );
 }
-

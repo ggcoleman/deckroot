@@ -121,5 +121,3 @@ function DeckRow({ entry }: { entry: DeckEntryView }) {
     </div>
   );
 }
-
-
