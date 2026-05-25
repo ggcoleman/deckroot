@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { DeckView } from "@/components/builder/types";
 
 type ExportMenuProps = {
@@ -8,38 +8,36 @@ type ExportMenuProps = {
 };
 
 type ExportFormat = "text" | "csv";
+type ExportState = { deckIdentity: string; content: string; status: string };
 
 const readyStatus = "Choose an export format when the list is ready.";
+const emptyStatus = "Build a deck before exporting.";
 
 export function ExportMenu({ deck }: ExportMenuProps) {
-  const [content, setContent] = useState("");
-  const [status, setStatus] = useState(readyStatus);
   const deckIdentity = useMemo(() => {
     if (!deck) return "no-deck";
     const cardCount = deck.cards.reduce((total, entry) => total + entry.quantity, 0);
     return `${deck.commander.oracleId}-${cardCount}`;
   }, [deck]);
-
-  useEffect(() => {
-    setContent("");
-    setStatus(deck ? readyStatus : "Build a deck before exporting.");
-  }, [deck, deckIdentity]);
+  const [exportState, setExportState] = useState<ExportState>({ deckIdentity: "no-deck", content: "", status: emptyStatus });
+  const isCurrentExport = exportState.deckIdentity === deckIdentity;
+  const content = isCurrentExport ? exportState.content : "";
+  const status = isCurrentExport ? exportState.status : deck ? readyStatus : emptyStatus;
 
   async function exportDeck(format: ExportFormat) {
     if (!deck) {
-      setStatus("Build a deck before exporting.");
+      setExportState({ deckIdentity, content: "", status: emptyStatus });
       return;
     }
 
-    setStatus(`Preparing ${format.toUpperCase()} export...`);
+    setExportState({ deckIdentity, content: "", status: `Preparing ${format.toUpperCase()} export...` });
     const response = await fetch("/api/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deck, format }),
     });
     const payload = await response.json() as { content: string };
-    setContent(payload.content);
-    setStatus(`${format.toUpperCase()} export ready.`);
+    setExportState({ deckIdentity, content: payload.content, status: `${format.toUpperCase()} export ready.` });
   }
 
   return (

@@ -1,28 +1,32 @@
 # Provider Compliance
-Deckroot uses Scryfall as the canonical card database and may use EDHREC recommendation surfaces through internal adapters. The current MVP runtime and API routes are fixture-backed demos; live Scryfall and EDHREC adapter code, cache settings, and provider environment variables are preparatory/experimental until provider factory wiring, cache configuration, permission review, and production deployment work are completed.
+Deckroot uses Scryfall as the canonical card database and can optionally use EDHREC recommendation surfaces through the internal `EdhrecProvider` adapter. Fixture mode remains the default; live provider modes must be enabled explicitly with environment variables.
 
-## Current Runtime Mode
-- API routes currently instantiate fixture-backed card catalog and EDHREC providers directly.
-- Setting `DECKROOT_SCRYFALL_MODE` or `DECKROOT_EDHREC_MODE` does not enable live runtime behavior in the MVP.
-- Treat live adapters as implementation groundwork for future integration testing and production hardening, not as a supported deployment mode yet.
+## Runtime Modes
+- Fixture mode is the default for local development, demos, and automated tests.
+- `DECKROOT_SCRYFALL_MODE=live` enables live Scryfall card search and card-name resolution for API routes.
+- `DECKROOT_EDHREC_MODE=live` is experimental and only runs when `DECKROOT_EDHREC_LIVE_ACK=true` is also set.
+- API responses include `providerMode` and `providerWarnings` when provider-backed work is performed.
+- Automated tests use fake network responses and must not call third-party services.
 
 ## Scryfall
 - Send `User-Agent` and `Accept: application/json` headers on all live API requests.
-- Keep app-level live requests at or below 5 requests per second.
-- Prefer cached and bulk data for repeated lookups.
+- Keep app-level live requests at or below 5 requests per second; the current runtime limiter allows one Scryfall request every 200ms.
+- Cache repeated lookups in `DECKROOT_CACHE_DIR`; named lookups cache for one day and searches cache for one hour.
+- Prefer cached and bulk data for future high-volume features.
 - Show Scryfall attribution near card data, price estimates, images, and purchase links.
 - Treat prices as estimates and send users to linked retailers for final prices.
 
 ## EDHREC
-- Use `EdhrecProvider` rather than coupling application code to third-party wrapper packages.
-- Cache successful recommendation responses for seven days when live provider mode is eventually wired.
+- Use `EdhrecProvider` rather than coupling application code to third-party wrapper packages or page scraping.
+- Require `DECKROOT_EDHREC_LIVE_ACK=true` before any live EDHREC request is attempted.
+- Cache successful recommendation responses for seven days.
 - Limit live recommendation requests to one request per second.
-- Show EDHREC attribution wherever recommendation data affects candidates or card choices.
+- Fall back to fixture recommendations with a provider warning when live EDHREC is not acknowledged or fails during deck build.
+- Show EDHREC attribution wherever live recommendation data affects candidates or card choices.
 - Before public launch, contact EDHREC for permission and usage expectations because EDHREC does not advertise an official public API for product-scale automated access.
-- If EDHREC is unavailable or permission is not granted, keep runtime behavior fixture-backed.
 
 ## Wizards Fan Content
-Deckroot is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+Deckroot is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast LLC.
 
 ## References
 - [Scryfall API Documentation](https://scryfall.com/docs/api)

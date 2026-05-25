@@ -1,4 +1,4 @@
-﻿import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 
 export type ProviderCache = {
@@ -18,8 +18,14 @@ const isInsideRoot = (root: string, target: string) => {
 };
 
 const assertRealPathInsideRoot = async (rootDir: string, targetPath: string) => {
-  const realRoot = await realpath(rootDir);
-  const realTarget = await realpath(targetPath);
+  const realRoot = await realpath(
+    /* turbopackIgnore: true */
+    rootDir,
+  );
+  const realTarget = await realpath(
+    /* turbopackIgnore: true */
+    targetPath,
+  );
   if (!isInsideRoot(realRoot, realTarget)) {
     throw new Error(`Cache path escapes root: ${targetPath}`);
   }
@@ -27,7 +33,10 @@ const assertRealPathInsideRoot = async (rootDir: string, targetPath: string) => 
 
 const assertNotSymlink = async (targetPath: string) => {
   try {
-    const stats = await lstat(targetPath);
+    const stats = await lstat(
+      /* turbopackIgnore: true */
+      targetPath,
+    );
     if (stats.isSymbolicLink()) {
       throw new Error(`Cache path cannot be a symlink: ${targetPath}`);
     }
@@ -55,14 +64,26 @@ export function createMemoryCache(now: () => number = () => Date.now()): Provide
 export function createFileCache(rootDir: string, now: () => number = () => Date.now()): ProviderCache {
   return {
     async get<T>(provider: string, key: string) {
-      const providerDir = join(rootDir, safeKey(provider));
-      const filePath = join(providerDir, `${safeKey(key)}.json`);
+      const providerDir = join(
+        /* turbopackIgnore: true */
+        rootDir,
+        safeKey(provider),
+      );
+      const filePath = join(
+        /* turbopackIgnore: true */
+        providerDir,
+        `${safeKey(key)}.json`,
+      );
       try {
         await assertNotSymlink(providerDir);
         await assertRealPathInsideRoot(rootDir, providerDir);
         await assertNotSymlink(filePath);
         await assertRealPathInsideRoot(rootDir, filePath);
-        const entry = JSON.parse(await readFile(filePath, "utf8")) as Entry;
+        const entry = JSON.parse(await readFile(
+          /* turbopackIgnore: true */
+          filePath,
+          "utf8",
+        )) as Entry;
         if (entry.expiresAt <= now()) return null;
         return entry.value as T;
       } catch {
@@ -70,16 +91,36 @@ export function createFileCache(rootDir: string, now: () => number = () => Date.
       }
     },
     async set<T>(provider: string, key: string, value: T, ttlMs: number) {
-      await mkdir(rootDir, { recursive: true });
-      const providerDir = join(rootDir, safeKey(provider));
-      const filePath = join(providerDir, `${safeKey(key)}.json`);
+      await mkdir(
+        /* turbopackIgnore: true */
+        rootDir,
+        { recursive: true },
+      );
+      const providerDir = join(
+        /* turbopackIgnore: true */
+        rootDir,
+        safeKey(provider),
+      );
+      const filePath = join(
+        /* turbopackIgnore: true */
+        providerDir,
+        `${safeKey(key)}.json`,
+      );
 
       await assertNotSymlink(providerDir);
-      await mkdir(providerDir, { recursive: true });
+      await mkdir(
+        /* turbopackIgnore: true */
+        providerDir,
+        { recursive: true },
+      );
       await assertRealPathInsideRoot(rootDir, providerDir);
       await assertNotSymlink(filePath);
       await assertRealPathInsideRoot(rootDir, dirname(filePath));
-      await writeFile(filePath, JSON.stringify({ expiresAt: now() + ttlMs, value }, null, 2));
+      await writeFile(
+        /* turbopackIgnore: true */
+        filePath,
+        JSON.stringify({ expiresAt: now() + ttlMs, value }, null, 2),
+      );
     }
   };
 }

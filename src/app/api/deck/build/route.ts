@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import type { Card } from "@/domain/cards/types";
-import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
-import { createFixtureEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
+import { createHybridCardCatalog } from "@/domain/cards/scryfall-catalog";
+import { fixtureCards } from "@/domain/decks/demo-fixtures";
 import { assembleCommanderDeck } from "@/domain/decks/deck-assembler";
 import { analyzeDeck } from "@/domain/decks/deck-analysis";
 import { buildBuyList } from "@/domain/decks/buy-list";
-import { generateCommanderCandidates } from "@/domain/decks/candidate-generator";
+import { generateCommanderCandidates, type DeckCandidate } from "@/domain/decks/candidate-generator";
+import { createRuntimeProviders, type RuntimeProviderMode } from "@/domain/providers/runtime-providers";
 
 const maxOwnedCardNames = 500;
 const maxCardNameLength = 200;
@@ -27,28 +28,64 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Too many owned cards" }, { status: 413 });
   }
 
+  const providers = createRuntimeProviders();
+  if (!providers.ok) {
+    return NextResponse.json({ error: providers.error.message, code: providers.error.code }, { status: 400 });
+  }
+
   const targetBracket = body.targetBracket ?? 2;
   const budgetUsd = body.budgetUsd ?? 75;
-  const catalog = createFixtureCardCatalog();
-  const edhrec = createFixtureEdhrecProvider(catalog);
-  const ownedCards = await resolveCardNames(normalized.ownedCardNames, catalog.findByName);
-  const seedCard = normalized.seedCardName ? await catalog.findByName(normalized.seedCardName) ?? undefined : undefined;
+  const providerWarnings = [...providers.value.warnings];
+  const providerMode: RuntimeProviderMode = { ...providers.value.mode };
 
-  const candidates = await generateCommanderCandidates({
-    seedCard,
-    ownedCards,
-    targetBracket,
-    budgetUsd,
-    catalog,
-    edhrec,
+  let ownedCards: Card[];
+  let seedCard: Card | undefined;
+  try {
+    ownedCards = await resolveCardNames(normalized.ownedCardNames, providers.value.catalog.findByName);
+    seedCard = normalized.seedCardName ? await providers.value.catalog.findByName(normalized.seedCardName) ?? undefined : undefined;
+  } catch (error) {
+    return NextResponse.json({
+      error: "Card provider request failed",
+      detail: error instanceof Error ? error.message : "Unknown provider error",
+    }, { status: 502 });
+  }
+
+  let candidates: DeckCandidate[];
+  try {
+    candidates = await generateCommanderCandidates({
+      seedCard,
+      ownedCards,
+      targetBracket,
+      budgetUsd,
+      catalog: providers.value.catalog,
+      edhrec: providers.value.edhrec,
+    });
+  } catch (error) {
+    if (providers.value.mode.edhrec !== "live") throw error;
+    providerMode.edhrec = "fixture-fallback";
+    providerWarnings.push(`EDHREC live request failed; using fixture recommendations. ${error instanceof Error ? error.message : "Unknown provider error"}`);
+    candidates = await generateCommanderCandidates({
+      seedCard,
+      ownedCards,
+      targetBracket,
+      budgetUsd,
+      catalog: providers.value.catalog,
+      edhrec: providers.value.fixtureEdhrec,
+    });
+  }
+
+  const assemblyCatalog = createHybridCardCatalog({
+    primary: providers.value.catalog,
+    fallbackCards: fixtureCards,
+    extraCards: collectRequestCards(seedCard, ownedCards, candidates),
   });
   const deck = candidates[0]
-    ? await assembleCommanderDeck({ candidate: candidates[0], ownedCards, budgetUsd, catalog })
+    ? await assembleCommanderDeck({ candidate: candidates[0], ownedCards, budgetUsd, catalog: assemblyCatalog })
     : null;
   const analysis = deck ? analyzeDeck(deck) : null;
   const buyList = deck ? buildBuyList({ deck, ownedCards, budgetUsd }) : null;
 
-  return NextResponse.json({ candidates, deck, analysis, buyList });
+  return NextResponse.json({ candidates, deck, analysis, buyList, providerMode, providerWarnings });
 }
 
 function normalizeBuildPayload(body: Partial<BuildDeckBody>):
@@ -83,6 +120,15 @@ async function resolveCardNames(
     if (card) cards.push(card);
   }
   return cards;
+}
+
+function collectRequestCards(seedCard: Card | undefined, ownedCards: Card[], candidates: DeckCandidate[]): Card[] {
+  return [
+    ...(seedCard ? [seedCard] : []),
+    ...ownedCards,
+    ...candidates.map((candidate) => candidate.commander),
+    ...candidates.flatMap((candidate) => candidate.recommendedCards),
+  ];
 }
 
 async function readJson<T>(request: Request): Promise<Partial<T>> {
