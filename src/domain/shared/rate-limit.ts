@@ -33,6 +33,7 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
           running -= 1;
           pump();
         });
+      pump();
     }, delay);
   };
 

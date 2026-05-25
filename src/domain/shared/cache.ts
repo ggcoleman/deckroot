@@ -7,7 +7,10 @@ export type ProviderCache = {
 };
 
 type Entry = { expiresAt: number; value: unknown };
-const safeKey = (value: string) => value.replace(/[^a-zA-Z0-9._-]/g, "_");
+const safeKey = (value: string) => {
+  const sanitized = value.replace(/[\\/]+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "_");
+  return sanitized.replace(/_+/g, "_").replace(/^_+|_+$/g, "") || "_";
+};
 
 export function createMemoryCache(now: () => number = () => Date.now()): ProviderCache {
   const entries = new Map<string, Entry>();
