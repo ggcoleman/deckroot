@@ -7,7 +7,7 @@ export function classifyRole(card: Card): DeckRole[] {
   const typeLine = card.typeLine.toLowerCase();
   const roles = new Set<DeckRole>();
   if (typeLine.includes("land")) roles.add("land");
-  if (text.includes("add ") && (text.includes("mana") || /\{[cwubrg]\}/.test(text) || Boolean(card.producedMana?.length))) roles.add("ramp");
+  if (!roles.has("land") && text.includes("add ") && (text.includes("mana") || /\{[cwubrg]\}/.test(text) || Boolean(card.producedMana?.length))) roles.add("ramp");
   if (/draw (a|two|three|x|that many|cards?)/.test(text)) roles.add("draw");
   if (/(destroy|exile|counter target|return target).*(creature|artifact|enchantment|spell|permanent)/.test(text)) roles.add("removal");
   if (/(destroy|exile).*(all|each).*(creatures|permanents|artifacts|enchantments)/.test(text)) roles.add("wipe");
@@ -17,3 +17,4 @@ export function classifyRole(card: Card): DeckRole[] {
   if (roles.size === 0) roles.add("utility");
   return [...roles];
 }
+

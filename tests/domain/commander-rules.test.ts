@@ -83,4 +83,10 @@ describe("commander rules and roles", () => {
     expect(roles).toContain("removal");
     expect(roles).not.toContain("land");
   });
+
+  it("does not classify mana-producing lands as ramp", () => {
+    expect(classifyRole(fixtureCard("Island"))).toContain("land");
+    expect(classifyRole(fixtureCard("Island"))).not.toContain("ramp");
+  });
 });
+
