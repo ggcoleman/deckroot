@@ -89,4 +89,3 @@ describe("commander rules and roles", () => {
     expect(classifyRole(fixtureCard("Island"))).not.toContain("ramp");
   });
 });
-

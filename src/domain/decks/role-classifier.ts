@@ -17,4 +17,3 @@ export function classifyRole(card: Card): DeckRole[] {
   if (roles.size === 0) roles.add("utility");
   return [...roles];
 }
-
