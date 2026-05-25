@@ -34,4 +34,4 @@ DECKROOT_USER_AGENT=Deckroot/0.1 contact@example.com
 ```
 
 ## Attribution
-Card data, prices, and purchase links are provided by Scryfall. Recommendation signals may include EDHREC data. Deckroot is unofficial Fan Content and is not approved or endorsed by Wizards of the Coast.
+Card data, prices, and purchase links are provided by Scryfall. Recommendation signals may include EDHREC data. Deckroot is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.

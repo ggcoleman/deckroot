@@ -12,6 +12,8 @@ test("builds a Commander deck from a seed card", async ({ page }) => {
   await expect(page.getByText("100 cards")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Buy first" })).toBeVisible();
   await expect(page.getByText("Card data and prices are powered by Scryfall")).toBeVisible();
+  const buyRail = page.getByRole("complementary", { name: "Buy first" });
+  await expect(buyRail.getByText("Prices and purchase links are powered by Scryfall")).toBeVisible();
 
   await page.getByRole("button", { name: "Text" }).click();
   const exportedDeck = page.getByLabel("Exported deck content");

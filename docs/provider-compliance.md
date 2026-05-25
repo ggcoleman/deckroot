@@ -17,4 +17,10 @@ Deckroot uses Scryfall as the canonical card database and may use EDHREC recomme
 - If EDHREC is unavailable or permission is not granted, run `DECKROOT_EDHREC_MODE=fixture`.
 
 ## Wizards Fan Content
-Deckroot is unofficial Fan Content permitted under the Fan Content Policy. Deckroot is not approved or endorsed by Wizards. Magic: The Gathering and related marks belong to Wizards of the Coast.
+Deckroot is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+
+## References
+- [Scryfall API Documentation](https://scryfall.com/docs/api)
+- [Scryfall API access FAQ](https://scryfall.com/docs/faqs/i-m-having-trouble-accessing-the-scryfall-api-or-i-m-blocked-17)
+- [EDHREC Terms](https://edhrec.com/terms)
+- [Wizards Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy)

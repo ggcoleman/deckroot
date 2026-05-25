@@ -31,7 +31,7 @@ export function BuyRail({ buyList, budgetUsd }: BuyRailProps) {
       )}
 
       <p className="providerAttribution">
-        Prices are estimates. Use retailer links to confirm availability and final checkout price.
+        Prices and purchase links are powered by Scryfall where available. Prices are estimates; confirm final availability and checkout price with retailers.
       </p>
     </aside>
   );
