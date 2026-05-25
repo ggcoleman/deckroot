@@ -1,0 +1,36 @@
+﻿import { describe, expect, it } from "vitest";
+import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
+import { parseImportedList } from "@/domain/import/import-parser";
+import { resolveImportedRows } from "@/domain/import/import-resolver";
+
+describe("owned-list import", () => {
+  it("parses plain text quantities and commander marker", () => {
+    const result = parseImportedList("1 Sol Ring\n2 Island\nCommander: Alela, Artful Provocateur");
+    expect(result.rows).toMatchObject([
+      { quantity: 1, name: "Sol Ring", sourceSection: "main", commander: false },
+      { quantity: 2, name: "Island", sourceSection: "main", commander: false },
+      { quantity: 1, name: "Alela, Artful Provocateur", sourceSection: "commander", commander: true }
+    ]);
+  });
+
+  it("parses ManaBox CSV exports", () => {
+    const csv = "Name,Quantity,Set code,Collector number\nSol Ring,1,CMM,400\nIsland,10,DMU,278";
+    expect(parseImportedList(csv).rows).toMatchObject([
+      { quantity: 1, name: "Sol Ring", setCode: "CMM", collectorNumber: "400" },
+      { quantity: 10, name: "Island", setCode: "DMU", collectorNumber: "278" }
+    ]);
+  });
+
+  it("keeps malformed rows as warnings", () => {
+    const result = parseImportedList("1 Sol Ring\nnot a usable row ###\n1 Arcane Signet");
+    expect(result.rows.map((row) => row.name)).toEqual(["Sol Ring", "Arcane Signet"]);
+    expect(result.warnings).toEqual([{ line: 2, raw: "not a usable row ###", message: "Could not parse a quantity and card name." }]);
+  });
+
+  it("resolves rows through fixture catalog", async () => {
+    const parsed = parseImportedList("1 sol ring\n1 Alela, Artful Provocateur");
+    const resolved = await resolveImportedRows(parsed.rows, createFixtureCardCatalog());
+    expect(resolved.cards.map((row) => row.card.name)).toEqual(["Sol Ring", "Alela, Artful Provocateur"]);
+    expect(resolved.unresolved).toEqual([]);
+  });
+});
