@@ -8,6 +8,7 @@ const eslintConfig = [
     ignores: [
       ".next/**",
       "node_modules/**",
+      ".worktrees/**",
       "out/**",
       "coverage/**",
       "playwright-report/**",
