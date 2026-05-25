@@ -73,11 +73,13 @@ const searchLocalCards = (cards: Card[], query: string) => {
 };
 
 export function createScryfallCardCatalog(options: ScryfallCatalogOptions): CardCatalog {
-  const localCards = () => mergeCards(options.extraCards ?? [], options.fallbackCards ?? []);
+  const extraCards = () => options.extraCards ?? [];
+  const fallbackCards = () => options.fallbackCards ?? [];
+  const localCards = () => mergeCards(extraCards(), fallbackCards());
 
   return {
     async findByName(name) {
-      return findLocalCard(localCards(), name) ?? await options.client.named(name);
+      return findLocalCard(extraCards(), name) ?? await options.client.named(name) ?? findLocalCard(fallbackCards(), name);
     },
     async search(query) {
       const liveResults = (await options.client.search(query)).map(toSearchResult);
@@ -90,11 +92,13 @@ export function createScryfallCardCatalog(options: ScryfallCatalogOptions): Card
 }
 
 export function createHybridCardCatalog(options: HybridCatalogOptions): CardCatalog {
-  const localCards = () => mergeCards(options.extraCards ?? [], options.fallbackCards ?? []);
+  const extraCards = () => options.extraCards ?? [];
+  const fallbackCards = () => options.fallbackCards ?? [];
+  const localCards = () => mergeCards(extraCards(), fallbackCards());
 
   return {
     async findByName(name) {
-      return findLocalCard(localCards(), name) ?? await options.primary.findByName(name);
+      return findLocalCard(extraCards(), name) ?? await options.primary.findByName(name) ?? findLocalCard(fallbackCards(), name);
     },
     async search(query) {
       return mergeSearchResults(await options.primary.search(query), searchLocalCards(localCards(), query)).slice(0, 20);

@@ -12,7 +12,7 @@ type LeftRailProps = {
   onOwnedListChange: (value: string) => void;
   onBudgetUsdChange: (value: number) => void;
   onTargetBracketChange: (value: number) => void;
-  onUseBitterblossom: () => void;
+  onUseSeed: () => void;
   onBuildDeck: () => void;
   onAnalyzeOwnedList: () => void;
 };
@@ -28,8 +28,9 @@ export function LeftRail(props: LeftRailProps) {
 
       <CardSearch
         seedCardName={props.seedCardName}
+        disabled={props.isBusy}
         onSeedCardNameChange={props.onSeedCardNameChange}
-        onUseBitterblossom={props.onUseBitterblossom}
+        onUseSeed={props.onUseSeed}
       />
 
       <section className="railSection railSection--compact" aria-labelledby="constraints-heading">

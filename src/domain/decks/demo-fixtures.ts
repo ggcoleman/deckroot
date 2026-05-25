@@ -7,6 +7,7 @@ type FixtureCardInput = Omit<Card, "id" | "oracleId" | "normalizedName" | "legal
 
 const normalizeName = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const purchaseName = (name: string) => encodeURIComponent(name);
+const scryfallNamedImageUrl = (name: string) => `https://api.scryfall.com/cards/named?exact=${purchaseName(name)}&format=image&version=normal`;
 
 const createFixtureCard = (input: FixtureCardInput): Card => ({
   id: `fixture-${normalizeName(input.name)}`,
@@ -27,7 +28,7 @@ const createFixtureCard = (input: FixtureCardInput): Card => ({
     cardmarket: `https://www.cardmarket.com/en/Magic/Products/Search?searchString=${purchaseName(input.name)}`,
     cardhoarder: `https://www.cardhoarder.com/cards?data%5Bsearch%5D=${purchaseName(input.name)}`,
   },
-  imageUrl: `https://cards.scryfall.io/normal/front/${normalizeName(input.name)}.jpg`,
+  imageUrl: scryfallNamedImageUrl(input.name),
   ...(input.producedMana ? { producedMana: input.producedMana } : {}),
 });
 

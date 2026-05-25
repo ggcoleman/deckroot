@@ -35,6 +35,44 @@ const mapPrices = (prices: ScryfallCard["prices"]): CardPrice => ({
 });
 
 const cacheKeyInput = (value: string) => value.trim().toLowerCase();
+const NOT_FOUND_STATUSES = new Set([400, 404]);
+
+const isCommanderShaped = (card: Card) => {
+  const typeLine = card.typeLine.toLowerCase();
+  return typeLine.includes("legendary") && typeLine.includes("creature");
+};
+
+const searchMatchScore = (query: string, card: Card) => {
+  const needle = normalize(query);
+  const name = normalize(card.name);
+  if (!needle || !name) return 0;
+  if (name === needle) return 100;
+  if (name.startsWith(`${needle} `)) return 90;
+  if (name.split(" ").includes(needle)) return 80;
+  if (name.includes(needle)) return 40;
+  return 0;
+};
+
+const bestSearchMatch = (query: string, cards: Card[]) => {
+  const ranked = cards
+    .map((card) => ({ card, score: searchMatchScore(query, card) }))
+    .filter((result) => result.score > 0)
+    .sort((left, right) => {
+      const scoreDifference = right.score - left.score;
+      if (scoreDifference !== 0) return scoreDifference;
+
+      const commanderDifference = Number(isCommanderShaped(right.card)) - Number(isCommanderShaped(left.card));
+      if (commanderDifference !== 0) return commanderDifference;
+
+      const leftRank = left.card.edhrecRank ?? Number.MAX_SAFE_INTEGER;
+      const rightRank = right.card.edhrecRank ?? Number.MAX_SAFE_INTEGER;
+      if (leftRank !== rightRank) return leftRank - rightRank;
+
+      return left.card.name.length - right.card.name.length;
+    });
+
+  return ranked[0]?.card ?? null;
+};
 
 export function normalizeScryfallCard(raw: unknown): Card {
   const card = scryfallCardSchema.parse(raw);
@@ -65,49 +103,63 @@ export function normalizeScryfallCard(raw: unknown): Card {
 export function createScryfallClient(options: ScryfallClientOptions): ScryfallClient {
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl ?? "https://api.scryfall.com";
+  const headers = {
+    Accept: "application/json",
+    "User-Agent": options.userAgent,
+  };
 
-  const getJson = async (url: string) => {
+  const searchCards = async (query: string) => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) return [];
+
+    const normalizedQuery = cacheKeyInput(trimmedQuery);
+    const cacheKey = `search:${normalizedQuery}`;
+    const cached = await options.cache.get<Card[]>("scryfall", cacheKey);
+    if (cached) return cached;
+
+    const url = `${baseUrl}/cards/search?q=${encodeURIComponent(trimmedQuery)}`;
     const response = await options.limiter.schedule(() => fetchImpl(url, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": options.userAgent,
-      },
+      headers,
     }));
+    if (response.status === 404) {
+      await options.cache.set("scryfall", cacheKey, [], ONE_HOUR_MS);
+      return [];
+    }
     if (!response.ok) throw new Error(`Scryfall request failed with ${response.status}`);
-    return response.json() as Promise<unknown>;
+    const raw = scryfallSearchResponseSchema.parse(await response.json());
+    const cards = raw.data.map(normalizeScryfallCard);
+    await options.cache.set("scryfall", cacheKey, cards, ONE_HOUR_MS);
+    return cards;
+  };
+
+  const fetchNamedCard = async (matchMode: "exact" | "fuzzy", name: string): Promise<Card | null> => {
+    const url = `${baseUrl}/cards/named?${matchMode}=${encodeURIComponent(name)}`;
+    const response = await options.limiter.schedule(() => fetchImpl(url, {
+      headers,
+    }));
+    if (NOT_FOUND_STATUSES.has(response.status)) return null;
+    if (!response.ok) throw new Error(`Scryfall request failed with ${response.status}`);
+    return normalizeScryfallCard(await response.json());
   };
 
   return {
     async search(query) {
-      const normalizedQuery = cacheKeyInput(query);
-      const cacheKey = `search:${normalizedQuery}`;
-      const cached = await options.cache.get<Card[]>("scryfall", cacheKey);
-      if (cached) return cached;
-
-      const url = `${baseUrl}/cards/search?q=${encodeURIComponent(query.trim())}`;
-      const raw = scryfallSearchResponseSchema.parse(await getJson(url));
-      const cards = raw.data.map(normalizeScryfallCard);
-      await options.cache.set("scryfall", cacheKey, cards, ONE_HOUR_MS);
-      return cards;
+      return searchCards(query);
     },
 
     async named(name) {
-      const normalizedName = cacheKeyInput(name);
+      const trimmedName = name.trim();
+      if (!trimmedName) return null;
+
+      const normalizedName = cacheKeyInput(trimmedName);
       const cacheKey = `named:${normalizedName}`;
       const cached = await options.cache.get<Card>("scryfall", cacheKey);
       if (cached) return cached;
 
-      const url = `${baseUrl}/cards/named?exact=${encodeURIComponent(name.trim())}`;
-      const response = await options.limiter.schedule(() => fetchImpl(url, {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": options.userAgent,
-        },
-      }));
-      if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`Scryfall request failed with ${response.status}`);
-
-      const card = normalizeScryfallCard(await response.json());
+      const exactCard = await fetchNamedCard("exact", trimmedName);
+      const fuzzyCard = exactCard ?? await fetchNamedCard("fuzzy", trimmedName);
+      const card = fuzzyCard ?? bestSearchMatch(trimmedName, await searchCards(trimmedName));
+      if (!card) return null;
       await options.cache.set("scryfall", cacheKey, card, ONE_DAY_MS);
       return card;
     },

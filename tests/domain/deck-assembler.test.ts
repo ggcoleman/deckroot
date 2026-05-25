@@ -7,6 +7,18 @@ import { fixtureCard } from "@/domain/decks/demo-fixtures";
 import type { Card } from "@/domain/cards/types";
 
 const basicLandNames = ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"];
+const monoBlackCommander: Card = {
+  ...fixtureCard("Tegwyll, Duke of Splendor"),
+  id: "fixture-vilis",
+  oracleId: "fixture-oracle-vilis",
+  name: "Vilis, Broker of Blood",
+  normalizedName: "vilis-broker-of-blood",
+  manaCost: "{5}{B}{B}{B}",
+  manaValue: 8,
+  colorIdentity: ["B"],
+  typeLine: "Legendary Creature - Demon",
+  oracleText: "Flying. Pay 2 life: Target creature gets -1/-1 until end of turn. Whenever you lose life, draw that many cards.",
+};
 
 describe("assembleCommanderDeck", () => {
   it("builds exactly 100 legal cards including commander", async () => {
@@ -42,6 +54,40 @@ describe("assembleCommanderDeck", () => {
     const duplicateNonBasics = [...seen.entries()].filter(([name, count]) => count > 1 && !basicLandNames.includes(name));
     expect(duplicateNonBasics).toEqual([]);
   });
+
+  it("backfills mono-color commander decks to 100 cards with legal basics only", async () => {
+    const catalog = createFixtureCardCatalog([
+      monoBlackCommander,
+      fixtureCard("Island"),
+      fixtureCard("Plains"),
+      fixtureCard("Swamp"),
+      fixtureCard("Sol Ring"),
+      fixtureCard("Phyrexian Arena"),
+    ]);
+    const candidate = {
+      id: "vilis-2",
+      commanderName: monoBlackCommander.name,
+      commander: monoBlackCommander,
+      theme: "mono-black control",
+      score: 0,
+      ownedCount: 0,
+      ownedSynergyCount: 0,
+      missingEstimatedUsd: 0,
+      targetBracket: 2,
+      reasons: [],
+      recommendedCards: [],
+    };
+
+    const deck = await assembleCommanderDeck({ candidate, ownedCards: [], budgetUsd: 5, catalog });
+    const names = deck.cards.map((entry) => entry.card.name);
+
+    expect(deck.cards).toHaveLength(100);
+    expect(deck.validation.ok).toBe(true);
+    expect(names).toContain("Swamp");
+    expect(names).not.toContain("Island");
+    expect(names).not.toContain("Plains");
+  });
+
   it("filters non-Commander-legal owned and recommended cards before assembly", async () => {
     const catalog = createFixtureCardCatalog();
     const edhrec = createFixtureEdhrecProvider(catalog);

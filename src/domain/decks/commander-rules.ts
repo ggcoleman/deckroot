@@ -2,6 +2,24 @@ import type { Card, Color } from "@/domain/cards/types";
 import { err, ok, type Result } from "@/domain/shared/result";
 
 const hasWord = (value: string, word: string) => new RegExp(`\\b${word}\\b`, "i").test(value);
+const basicLandSubtypeColors: Array<{ subtype: string; color: Color }> = [
+  { subtype: "Plains", color: "W" },
+  { subtype: "Island", color: "U" },
+  { subtype: "Swamp", color: "B" },
+  { subtype: "Mountain", color: "R" },
+  { subtype: "Forest", color: "G" },
+];
+
+function effectiveColorIdentity(card: Card): Color[] {
+  const colors = new Set(card.colorIdentity);
+  const isBasicLand = hasWord(card.typeLine, "basic") && hasWord(card.typeLine, "land");
+  if (isBasicLand) {
+    for (const { subtype, color } of basicLandSubtypeColors) {
+      if (hasWord(card.typeLine, subtype)) colors.add(color);
+    }
+  }
+  return [...colors];
+}
 
 export function canBeCommander(card: Card): boolean {
   const isLegendaryCreature = hasWord(card.typeLine, "legendary") && hasWord(card.typeLine, "creature");
@@ -10,7 +28,7 @@ export function canBeCommander(card: Card): boolean {
 
 export function isCommanderLegalInIdentity(card: Card, commander: Card): boolean {
   const commanderColors = new Set<Color>(commander.colorIdentity);
-  return card.colorIdentity.every((color) => commanderColors.has(color));
+  return effectiveColorIdentity(card).every((color) => commanderColors.has(color));
 }
 
 export function allowsMultipleCopies(card: Card): boolean {

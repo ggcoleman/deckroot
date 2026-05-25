@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/Badge";
+import { CardArt } from "@/components/builder/CardArt";
 import type { BuyListItemView, BuyListView } from "@/components/builder/types";
 
 type BuyRailProps = {
@@ -42,11 +43,16 @@ function BuyItem({ item }: { item: BuyListItemView }) {
 
   return (
     <article className="buyItem">
-      <div className="buyItem__top">
-        <h3>{item.quantity} {item.card.name}</h3>
-        <strong>${item.estimatedUsd.toFixed(2)}</strong>
+      <div className="buyItem__layout">
+        <CardArt card={item.card} size="small" />
+        <div className="buyItem__body">
+          <div className="buyItem__top">
+            <h3>{item.quantity} {item.card.name}</h3>
+            <strong>${item.estimatedUsd.toFixed(2)}</strong>
+          </div>
+          <p>{item.priority}</p>
+        </div>
       </div>
-      <p>{item.priority}</p>
       <Badge tone={item.selectedWithinBudget ? "green" : "neutral"}>
         {item.selectedWithinBudget ? "Selected within budget" : "Outside current budget"}
       </Badge>

@@ -106,6 +106,25 @@ async function recommendationForName(catalog: CardCatalog, name: string, index: 
   };
 }
 
+async function rehydrateCachedResponse(catalog: CardCatalog, cached: EdhrecRecommendationResponse): Promise<EdhrecRecommendationResponse> {
+  const cards: EdhrecRecommendedCard[] = [];
+
+  for (const recommendation of cached.cards) {
+    const card = await catalog.findByName(recommendation.name) ?? recommendation.card;
+    cards.push({
+      ...recommendation,
+      card,
+      name: card.name,
+    });
+  }
+
+  return {
+    ...cached,
+    source: "cache",
+    cards,
+  };
+}
+
 export function createFixtureEdhrecProvider(catalog: CardCatalog): EdhrecProvider {
   return {
     async getCommanderRecommendations(request) {
@@ -130,7 +149,7 @@ export function createLiveEdhrecProvider(options: LiveEdhrecOptions): EdhrecProv
     async getCommanderRecommendations(request) {
       const cacheKey = cacheKeyFor(request);
       const cached = await options.cache.get<EdhrecRecommendationResponse>("edhrec", cacheKey);
-      if (cached) return { ...cached, source: "cache" };
+      if (cached) return rehydrateCachedResponse(options.catalog, cached);
 
       const response = await options.limiter.schedule(() => fetchImpl("https://edhrec.com/api/recs", {
         method: "POST",

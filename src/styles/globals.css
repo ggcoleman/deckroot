@@ -303,9 +303,193 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 .buyItem__top,
 .commanderPlate {
   display: flex;
-  justify-content: space-between;
   gap: 12px;
 }
+
+.candidateItem__top,
+.buyItem__top,
+.commanderPlate { justify-content: space-between; }
+
+.cardArtFrame {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.cardArtFrame:hover,
+.cardArtFrame:focus-within {
+  z-index: 80;
+}
+
+.cardArt {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background-color: var(--paper-deep);
+  background-position: center;
+  background-size: cover;
+  color: var(--ink-soft);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgb(46 35 22 / 15%);
+  cursor: zoom-in;
+  transition: box-shadow 140ms ease, transform 140ms ease;
+}
+
+.cardArt::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(255 250 240 / 46%);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.cardArt:focus-visible {
+  outline: 3px solid rgb(177 138 50 / 48%);
+  outline-offset: 3px;
+}
+
+.cardArt span {
+  display: grid;
+  place-items: center;
+  width: 70%;
+  aspect-ratio: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: rgb(255 250 240 / 66%);
+}
+
+.cardArt--large { width: 116px; }
+
+.cardArt--medium { width: 64px; }
+
+.cardArt--small {
+  width: 42px;
+  border-radius: 7px;
+  box-shadow: 0 4px 10px rgb(46 35 22 / 12%);
+}
+
+.cardArtFrame:hover .cardArt,
+.cardArtFrame:focus-within .cardArt {
+  box-shadow: 0 10px 24px rgb(46 35 22 / 18%);
+  transform: scale(1.04);
+}
+
+.cardArtPreview {
+  position: absolute;
+  z-index: 90;
+  top: 50%;
+  left: calc(100% + 14px);
+  display: grid;
+  align-items: end;
+  width: min(224px, calc(100vw - 32px));
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  background-color: var(--paper-deep);
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 28px 70px rgb(25 22 18 / 34%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scale(0.98);
+  transform-origin: left center;
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  visibility: hidden;
+}
+
+.cardArtFrame--large .cardArtPreview {
+  width: min(250px, calc(100vw - 32px));
+}
+
+.cardArtPreview::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(255 250 240 / 55%);
+  border-radius: 14px;
+  content: "";
+  pointer-events: none;
+}
+
+.cardArtPreview > span {
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: rgb(255 250 240 / 72%);
+  color: var(--ink-soft);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 900;
+}
+
+.cardArtPreview strong {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 14px 12px;
+  background: rgb(25 22 18 / 82%);
+  color: var(--vellum);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+  letter-spacing: -0.015em;
+  text-shadow: 0 1px 2px rgb(25 22 18 / 70%);
+}
+
+.cardArtFrame:hover .cardArtPreview,
+.cardArtFrame:focus-within .cardArtPreview {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  visibility: visible;
+}
+
+.candidateItem:nth-child(3n) .cardArtPreview,
+.buyRail .cardArtPreview {
+  right: calc(100% + 14px);
+  left: auto;
+  transform-origin: right center;
+}
+
+.buyRail .cardArtPreview {
+  position: fixed;
+  top: 50%;
+  right: 360px;
+  left: auto;
+}
+
+.buyRail .cardArtFrame:hover .cardArtPreview,
+.buyRail .cardArtFrame:focus-within .cardArtPreview {
+  transform: translateY(-50%) scale(1);
+}
+
+.candidateItem__top {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.candidateItem__copy,
+.commanderPlate__copy,
+.buyItem__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.candidateItem__copy {
+  display: grid;
+  gap: 8px;
+}
+
+.candidateItem__copy .manaCluster { justify-content: flex-start; }
 
 .manaCluster {
   display: flex;
@@ -400,6 +584,12 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   background: var(--paper-warm);
 }
 
+.commanderPlate__copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .commanderPlate h3 { font-size: clamp(1.7rem, 3vw, 2.6rem); }
 
 .commanderPlate p { margin: 6px 0 0; color: var(--muted); }
@@ -489,17 +679,17 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   margin-top: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .deckRow {
   display: grid;
-  grid-template-columns: 1.3fr 1fr auto;
+  grid-template-columns: auto minmax(0, 1.3fr) minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   border-bottom: 1px solid var(--line);
   background: var(--vellum);
-  padding: 9px 12px;
+  padding: 8px 12px;
 }
 
 .deckRow:last-child { border-bottom: 0; }
@@ -525,6 +715,12 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   border-radius: var(--radius-md);
   background: var(--vellum);
   padding: 12px;
+}
+
+.buyItem__layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .buyItem h3 { font-size: 1rem; }
@@ -574,6 +770,31 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   }
 
   .candidateList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .candidateItem:nth-child(3n) .cardArtPreview {
+    right: auto;
+    left: calc(100% + 14px);
+    transform-origin: left center;
+  }
+
+  .candidateItem:nth-child(2n) .cardArtPreview {
+    right: calc(100% + 14px);
+    left: auto;
+    transform-origin: right center;
+  }
+
+  .buyRail .cardArtPreview {
+    top: 50%;
+    right: auto;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.94);
+    transform-origin: center;
+  }
+
+  .buyRail .cardArtFrame:hover .cardArtPreview,
+  .buyRail .cardArtFrame:focus-within .cardArtPreview {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 @media (max-width: 720px) {
@@ -594,6 +815,25 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   .manaCluster { justify-content: flex-start; }
 
   .deckRow { gap: 5px; }
+
+  .cardArtPreview,
+  .candidateItem:nth-child(3n) .cardArtPreview,
+  .buyRail .cardArtPreview {
+    position: fixed;
+    top: 50%;
+    right: auto;
+    left: 50%;
+    width: min(78vw, 280px);
+    transform: translate(-50%, -50%) scale(0.94);
+    transform-origin: center;
+  }
+
+  .cardArtFrame:hover .cardArtPreview,
+  .cardArtFrame:focus-within .cardArtPreview,
+  .buyRail .cardArtFrame:hover .cardArtPreview,
+  .buyRail .cardArtFrame:focus-within .cardArtPreview {
+    transform: translate(-50%, -50%) scale(1);
+  }
 
   .brandBlock h1 { font-size: 2.8rem; }
 }

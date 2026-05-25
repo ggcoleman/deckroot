@@ -31,9 +31,7 @@ const priorityWeights: Record<BuyListPriority, number> = {
 
 export function buildBuyList(input: BuildBuyListInput): BuyList {
   const ownedCounts = countOwnedCards(input.ownedCards);
-  const items = input.deck.cards
-    .map((entry) => toBuyListItem(entry, ownedCounts))
-    .filter((item): item is BuyListItem => item !== null)
+  const items = aggregateBuyListItems(missingItemsForDeck(input.deck.cards, ownedCounts))
     .sort((left, right) => priorityWeights[left.priority] - priorityWeights[right.priority] || left.estimatedUsd - right.estimatedUsd || left.card.name.localeCompare(right.card.name));
 
   let totalSelectedUsd = 0;
@@ -46,11 +44,20 @@ export function buildBuyList(input: BuildBuyListInput): BuyList {
   return { items, totalSelectedUsd: roundCurrency(totalSelectedUsd) };
 }
 
-function toBuyListItem(entry: DeckCardEntry, ownedCounts: Map<string, number>): BuyListItem | null {
-  const ownedQuantity = ownedCounts.get(entry.card.oracleId) ?? 0;
-  const missingQuantity = Math.max(0, entry.quantity - ownedQuantity);
-  if (missingQuantity === 0) return null;
+function missingItemsForDeck(entries: DeckCardEntry[], ownedCounts: Map<string, number>): BuyListItem[] {
+  const remainingOwnedCounts = new Map(ownedCounts);
+  const items: BuyListItem[] = [];
+  for (const entry of entries) {
+    const ownedQuantity = remainingOwnedCounts.get(entry.card.oracleId) ?? 0;
+    const appliedOwnedQuantity = Math.min(entry.quantity, ownedQuantity);
+    remainingOwnedCounts.set(entry.card.oracleId, ownedQuantity - appliedOwnedQuantity);
+    const missingQuantity = Math.max(0, entry.quantity - appliedOwnedQuantity);
+    if (missingQuantity > 0) items.push(toBuyListItem(entry, missingQuantity));
+  }
+  return items;
+}
 
+function toBuyListItem(entry: DeckCardEntry, missingQuantity: number): BuyListItem {
   return {
     card: entry.card,
     quantity: missingQuantity,
@@ -58,6 +65,23 @@ function toBuyListItem(entry: DeckCardEntry, ownedCounts: Map<string, number>): 
     priority: priorityFor(entry),
     selectedWithinBudget: false,
   };
+}
+
+function aggregateBuyListItems(items: BuyListItem[]): BuyListItem[] {
+  const byOracleId = new Map<string, BuyListItem>();
+  for (const item of items) {
+    const existing = byOracleId.get(item.card.oracleId);
+    if (!existing) {
+      byOracleId.set(item.card.oracleId, { ...item });
+      continue;
+    }
+    existing.quantity += item.quantity;
+    existing.estimatedUsd = roundCurrency(existing.estimatedUsd + item.estimatedUsd);
+    if (priorityWeights[item.priority] < priorityWeights[existing.priority]) {
+      existing.priority = item.priority;
+    }
+  }
+  return [...byOracleId.values()];
 }
 
 function priorityFor(entry: DeckCardEntry): BuyListPriority {

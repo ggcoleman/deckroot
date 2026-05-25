@@ -1,10 +1,13 @@
 type CardSearchProps = {
   seedCardName: string;
+  disabled: boolean;
   onSeedCardNameChange: (value: string) => void;
-  onUseBitterblossom: () => void;
+  onUseSeed: () => void;
 };
 
-export function CardSearch({ seedCardName, onSeedCardNameChange, onUseBitterblossom }: CardSearchProps) {
+export function CardSearch({ seedCardName, disabled, onSeedCardNameChange, onUseSeed }: CardSearchProps) {
+  const seedLabel = seedCardName.trim();
+
   return (
     <section className="railSection" aria-labelledby="seed-heading">
       <div className="sectionHeader">
@@ -19,8 +22,8 @@ export function CardSearch({ seedCardName, onSeedCardNameChange, onUseBitterblos
         onChange={(event) => onSeedCardNameChange(event.target.value)}
         placeholder="Bitterblossom, Sol Ring, Alela..."
       />
-      <button className="button button--quiet" type="button" onClick={onUseBitterblossom}>
-        Use Bitterblossom
+      <button className="button button--quiet" type="button" onClick={onUseSeed} disabled={disabled || !seedLabel}>
+        Use {seedLabel || "this card"}
       </button>
       <p className="utilityCopy">Pick one card you want the deck to honor. Commander suggestions will bias toward legal synergy.</p>
     </section>

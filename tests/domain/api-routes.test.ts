@@ -19,20 +19,43 @@ const providerEnvKeys = [
 const originalProviderEnv = new Map(providerEnvKeys.map((key) => [key, process.env[key]]));
 let tempCacheDirs: string[] = [];
 
+type ScryfallCardFixture = {
+  id: string;
+  oracle_id: string;
+  name: string;
+  mana_cost: string;
+  cmc: number;
+  color_identity: string[];
+  type_line: string;
+  oracle_text: string;
+  legalities: Record<string, string>;
+  edhrec_rank: number | null;
+  game_changer: boolean;
+  prices: { usd: string | null; eur: string | null; tix: string | null };
+  purchase_uris: Record<string, string>;
+  image_uris: { normal: string };
+};
+
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-const scryfallCard = (name: string, colorIdentity: string[] = []) => ({
-  id: `scryfall-${slug(name)}`,
-  oracle_id: `oracle-${slug(name)}`,
-  name,
-  mana_cost: "{1}",
-  cmc: 1,
-  color_identity: colorIdentity,
-  type_line: "Artifact",
-  oracle_text: "{T}: Add one mana of any color.",
-  legalities: { commander: "legal" },
-  prices: { usd: "1.00", eur: null, tix: null },
-  purchase_uris: {},
-});
+const scryfallCard = (name: string, colorIdentity: string[] = [], overrides: Partial<ScryfallCardFixture> = {}): ScryfallCardFixture => {
+  const base: ScryfallCardFixture = {
+    id: `scryfall-${slug(name)}`,
+    oracle_id: `oracle-${slug(name)}`,
+    name,
+    mana_cost: "{1}",
+    cmc: 1,
+    color_identity: colorIdentity,
+    type_line: "Artifact",
+    oracle_text: "{T}: Add one mana of any color.",
+    legalities: { commander: "legal" },
+    edhrec_rank: null,
+    game_changer: false,
+    prices: { usd: "1.00", eur: null, tix: null },
+    purchase_uris: {},
+    image_uris: { normal: `https://cards.scryfall.io/normal/front/${slug(name)}.jpg` },
+  };
+  return { ...base, ...overrides };
+};
 
 function restoreProviderEnv() {
   for (const key of providerEnvKeys) {
@@ -53,7 +76,7 @@ async function useProviderEnv(values: Partial<Record<(typeof providerEnvKeys)[nu
   }
 }
 
-function stubScryfallFetch(cardsByName: Record<string, ReturnType<typeof scryfallCard>> = {}) {
+function stubScryfallFetch(cardsByName: Record<string, ScryfallCardFixture> = {}) {
   const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input));
     if (url.hostname === "edhrec.com") return Response.json({ inRecs: [] });
@@ -206,6 +229,94 @@ describe("Deckroot Commander API routes", () => {
     expect(body.providerWarnings).toEqual([]);
     expect(body.candidates.length).toBeGreaterThan(0);
     expect(fetchImpl.mock.calls.some(([input]) => String(input).includes("/cards/named"))).toBe(true);
+  });
+
+  it("uses a live Scryfall commander seed as the deck commander", async () => {
+    await useProviderEnv({
+      DECKROOT_SCRYFALL_MODE: "live",
+      DECKROOT_USER_AGENT: liveUserAgent,
+    });
+    stubScryfallFetch({
+      "Rev, Tithe Extractor": scryfallCard("Rev, Tithe Extractor", ["B"], {
+        mana_cost: "{2}{B}",
+        cmc: 3,
+        type_line: "Legendary Creature - Human Rogue",
+        oracle_text: "Whenever one or more Rogues you control deal combat damage to a player, create a Treasure token.",
+      }),
+    });
+
+    const response = await buildDeck(new Request("http://deckroot.test/api/deck/build", {
+      method: "POST",
+      body: JSON.stringify({
+        seedCardName: "Rev, Tithe Extractor",
+        ownedCardNames: [],
+        targetBracket: 2,
+        budgetUsd: 50,
+      }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.candidates[0].commanderName).toBe("Rev, Tithe Extractor");
+    expect(body.deck.commander.name).toBe("Rev, Tithe Extractor");
+    expect(body.deck.commander.imageUrl).toBe("https://cards.scryfall.io/normal/front/rev-tithe-extractor.jpg");
+  });
+
+  it("builds a 100-card mono-black live deck from an ambiguous commander seed without off-color basics", async () => {
+    await useProviderEnv({
+      DECKROOT_SCRYFALL_MODE: "live",
+      DECKROOT_USER_AGENT: liveUserAgent,
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.hostname === "edhrec.com") return Response.json({ inRecs: [] });
+      if (url.pathname.endsWith("/cards/search")) {
+        return Response.json({
+          data: [
+            scryfallCard("Devilish Valet", ["R"], {
+              mana_cost: "{2}{R}",
+              cmc: 3,
+              type_line: "Creature - Devil Warrior",
+              oracle_text: "Trample, haste.",
+            }),
+            scryfallCard("Vilis, Broker of Blood", ["B"], {
+              mana_cost: "{5}{B}{B}{B}",
+              cmc: 8,
+              type_line: "Legendary Creature - Demon",
+              oracle_text: "Flying. Whenever you lose life, draw that many cards.",
+              image_uris: { normal: "https://cards.scryfall.io/normal/front/vilis-broker-of-blood.jpg" },
+            }),
+          ],
+        });
+      }
+      const exactName = url.searchParams.get("exact");
+      const fuzzyName = url.searchParams.get("fuzzy");
+      if (exactName === "Vilis" || fuzzyName === "Vilis") return Response.json({ error: "too many cards match" }, { status: 404 });
+      return Response.json(scryfallCard(exactName ?? fuzzyName ?? "Live Card"));
+    }));
+
+    const response = await buildDeck(new Request("http://deckroot.test/api/deck/build", {
+      method: "POST",
+      body: JSON.stringify({
+        seedCardName: "Vilis",
+        ownedCardNames: [],
+        targetBracket: 2,
+        budgetUsd: 50,
+      }),
+    }));
+    const body = await response.json();
+    const deckNames = body.deck.cards.map((entry: { card: { name: string } }) => entry.card.name);
+    const buyNames = body.buyList.items.map((item: { card: { name: string } }) => item.card.name);
+
+    expect(response.status).toBe(200);
+    expect(body.deck.commander.name).toBe("Vilis, Broker of Blood");
+    expect(body.deck.cards).toHaveLength(100);
+    expect(body.deck.validation.ok).toBe(true);
+    expect(deckNames).not.toContain("Island");
+    expect(deckNames).not.toContain("Plains");
+    expect(buyNames).not.toContain("Island");
+    expect(buyNames).not.toContain("Plains");
+    expect(buyNames.filter((name: string) => name === "Swamp")).toHaveLength(1);
   });
 
   it("returns a fixture fallback warning when EDHREC live mode is not acknowledged", async () => {

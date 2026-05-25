@@ -14,18 +14,40 @@ const testCard = (name: string, overrides: Partial<Card> = {}): Card => ({
 });
 
 describe("Scryfall-backed card catalog", () => {
-  it("checks local cards before falling through to live named lookup", async () => {
-    const named = vi.fn(async (name: string) => testCard(name));
+  it("prefers live named lookup over fixture fallback cards so images and prices stay current", async () => {
+    const liveSolRing = testCard("Sol Ring", {
+      oracleId: "live-oracle-sol-ring",
+      imageUrl: "https://cards.scryfall.io/normal/front/live-sol-ring.jpg",
+      prices: { usd: 2, eur: null, tix: null },
+    });
+    const named = vi.fn(async () => liveSolRing);
     const catalog = createScryfallCardCatalog({
       client: { named, search: vi.fn() },
       fallbackCards: [fixtureCard("Sol Ring")],
     });
 
-    await expect(catalog.findByName("Sol Ring")).resolves.toMatchObject({ name: "Sol Ring" });
-    expect(named).not.toHaveBeenCalled();
+    await expect(catalog.findByName("Sol Ring")).resolves.toMatchObject({
+      name: "Sol Ring",
+      oracleId: "live-oracle-sol-ring",
+      imageUrl: "https://cards.scryfall.io/normal/front/live-sol-ring.jpg",
+      prices: { usd: 2, eur: null, tix: null },
+    });
+    expect(named).toHaveBeenCalledWith("Sol Ring");
+  });
 
+  it("keeps request extras before live lookup and uses fixture fallback only after live misses", async () => {
+    const extra = testCard("Live Seed", { oracleId: "extra-oracle-live-seed" });
+    const named = vi.fn(async (name: string) => name === "Live Tutor" ? testCard(name) : null);
+    const catalog = createScryfallCardCatalog({
+      client: { named, search: vi.fn() },
+      fallbackCards: [fixtureCard("Sol Ring")],
+      extraCards: [extra],
+    });
+
+    await expect(catalog.findByName("Live Seed")).resolves.toMatchObject({ oracleId: "extra-oracle-live-seed" });
     await expect(catalog.findByName("Live Tutor")).resolves.toMatchObject({ name: "Live Tutor" });
-    expect(named).toHaveBeenCalledWith("Live Tutor");
+    await expect(catalog.findByName("Sol Ring")).resolves.toMatchObject({ name: "Sol Ring" });
+    expect(named).toHaveBeenCalledTimes(2);
   });
 
   it("merges live search results with fallback cards without duplicates", async () => {

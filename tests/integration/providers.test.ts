@@ -68,6 +68,10 @@ describe("provider infrastructure", () => {
 
   it("provides deterministic card and deck fixtures", () => {
     expect(fixtureCard("Sol Ring").name).toBe("Sol Ring");
+    const fixtureImageUrl = new URL(fixtureCard("Sol Ring").imageUrl ?? "");
+    expect(fixtureImageUrl.hostname).toBe("api.scryfall.com");
+    expect(fixtureImageUrl.searchParams.get("exact")).toBe("Sol Ring");
+    expect(fixtureImageUrl.searchParams.get("format")).toBe("image");
 
     const deck = fixtureDeck();
     expect(deck.cards).toHaveLength(100);
@@ -210,6 +214,96 @@ describe("scryfall adapter", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it("falls back to fuzzy named lookup when exact matching misses", async () => {
+    const cache = createMemoryCache();
+    const limiter = createRateLimiter({ intervalMs: 0, maxConcurrent: 1 });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.searchParams.has("exact")) return Response.json({ error: "not found" }, { status: 404 });
+      return Response.json({
+        id: "scryfall-vilis",
+        oracle_id: "oracle-vilis",
+        name: "Vilis, Broker of Blood",
+        mana_cost: "{5}{B}{B}{B}",
+        cmc: 8,
+        color_identity: ["B"],
+        type_line: "Legendary Creature - Demon",
+        oracle_text: "Flying. Whenever you lose life, draw that many cards.",
+        legalities: { commander: "legal" },
+        prices: { usd: "9.00", eur: null, tix: null },
+        purchase_uris: {},
+        image_uris: { normal: "https://cards.scryfall.io/normal/front/vilis.jpg" },
+      });
+    });
+    const client = createScryfallClient({ cache, limiter, userAgent: "Deckroot Tests", fetchImpl });
+
+    await expect(client.named("Vilis")).resolves.toMatchObject({
+      name: "Vilis, Broker of Blood",
+      imageUrl: "https://cards.scryfall.io/normal/front/vilis.jpg",
+    });
+
+    expect(fetchImpl.mock.calls.map(([input]) => String(input))).toEqual([
+      "https://api.scryfall.com/cards/named?exact=Vilis",
+      "https://api.scryfall.com/cards/named?fuzzy=Vilis",
+    ]);
+  });
+
+  it("falls back to ranked search when named lookup is ambiguous", async () => {
+    const cache = createMemoryCache();
+    const limiter = createRateLimiter({ intervalMs: 0, maxConcurrent: 1 });
+    const devilishValet = {
+      id: "scryfall-devilish-valet",
+      oracle_id: "oracle-devilish-valet",
+      name: "Devilish Valet",
+      mana_cost: "{2}{R}",
+      cmc: 3,
+      color_identity: ["R"],
+      type_line: "Creature - Devil Warrior",
+      oracle_text: "Trample, haste.",
+      legalities: { commander: "legal" },
+      prices: { usd: "0.25", eur: null, tix: null },
+      purchase_uris: {},
+      image_uris: { normal: "https://cards.scryfall.io/normal/front/devilish-valet.jpg" },
+    };
+    const vilis = {
+      id: "scryfall-vilis",
+      oracle_id: "oracle-vilis",
+      name: "Vilis, Broker of Blood",
+      mana_cost: "{5}{B}{B}{B}",
+      cmc: 8,
+      color_identity: ["B"],
+      type_line: "Legendary Creature - Demon",
+      oracle_text: "Flying. Whenever you lose life, draw that many cards.",
+      legalities: { commander: "legal" },
+      prices: { usd: "9.00", eur: null, tix: null },
+      purchase_uris: {},
+      image_uris: { normal: "https://cards.scryfall.io/normal/front/vilis.jpg" },
+    };
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/cards/search")) return Response.json({ data: [devilishValet, vilis] });
+      return Response.json({
+        object: "error",
+        code: "not_found",
+        type: "ambiguous",
+        status: 404,
+        details: "Too many cards match ambiguous name \"Vilis\".",
+      }, { status: 404 });
+    });
+    const client = createScryfallClient({ cache, limiter, userAgent: "Deckroot Tests", fetchImpl });
+
+    await expect(client.named("Vilis")).resolves.toMatchObject({
+      name: "Vilis, Broker of Blood",
+      imageUrl: "https://cards.scryfall.io/normal/front/vilis.jpg",
+    });
+
+    expect(fetchImpl.mock.calls.map(([input]) => String(input))).toEqual([
+      "https://api.scryfall.com/cards/named?exact=Vilis",
+      "https://api.scryfall.com/cards/named?fuzzy=Vilis",
+      "https://api.scryfall.com/cards/search?q=Vilis",
+    ]);
+  });
 });
 
 describe("edhrec live provider", () => {
@@ -254,5 +348,42 @@ describe("edhrec live provider", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(cached.source).toBe("cache");
+  });
+
+  it("rehydrates cached recommendations through the current catalog", async () => {
+    const cache = createMemoryCache();
+    const staleSolRing = {
+      ...fixtureCard("Sol Ring"),
+      imageUrl: "https://cards.scryfall.io/normal/front/sol-ring.jpg",
+      prices: { usd: 99, eur: null, tix: null },
+    };
+    const freshSolRing = {
+      ...fixtureCard("Sol Ring"),
+      imageUrl: "https://api.scryfall.com/cards/named?exact=Sol%20Ring&format=image&version=normal",
+      prices: { usd: 1.35, eur: null, tix: null },
+    };
+    const fetchImpl = vi.fn(async () => Response.json({ inRecs: [{ name: "Sol Ring", score: 100 }] }));
+    const firstProvider = createLiveEdhrecProvider({
+      catalog: createFixtureCardCatalog([staleSolRing]),
+      cache,
+      limiter: createRateLimiter({ intervalMs: 0, maxConcurrent: 1 }),
+      userAgent: "Deckroot Tests",
+      fetchImpl,
+    });
+    const secondProvider = createLiveEdhrecProvider({
+      catalog: createFixtureCardCatalog([freshSolRing]),
+      cache,
+      limiter: createRateLimiter({ intervalMs: 0, maxConcurrent: 1 }),
+      userAgent: "Deckroot Tests",
+      fetchImpl,
+    });
+
+    await firstProvider.getCommanderRecommendations({ commanderName: "Vilis, Broker of Blood", seedNames: ["Vilis"] });
+    const cached = await secondProvider.getCommanderRecommendations({ commanderName: "Vilis, Broker of Blood", seedNames: ["Vilis"] });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(cached.source).toBe("cache");
+    expect(cached.cards[0]?.card.imageUrl).toBe(freshSolRing.imageUrl);
+    expect(cached.cards[0]?.card.prices.usd).toBe(1.35);
   });
 });

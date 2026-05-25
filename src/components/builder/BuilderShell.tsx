@@ -26,7 +26,7 @@ export function BuilderShell() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          seedCardName: options.seed ?? seedCardName,
+          seedCardName: (options.seed ?? seedCardName).trim(),
           ownedCardNames: options.ownedCardNames ?? [],
           targetBracket,
           budgetUsd,
@@ -77,7 +77,7 @@ export function BuilderShell() {
         onOwnedListChange={setOwnedList}
         onBudgetUsdChange={(value) => setBudgetUsd(Number.isFinite(value) ? value : 0)}
         onTargetBracketChange={(value) => setTargetBracket(value)}
-        onUseBitterblossom={() => setSeedCardName("Bitterblossom")}
+        onUseSeed={() => void buildDeck({ seed: seedCardName })}
         onBuildDeck={() => void buildDeck()}
         onAnalyzeOwnedList={() => void analyzeOwnedList()}
       />

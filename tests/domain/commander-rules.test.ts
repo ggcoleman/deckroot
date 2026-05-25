@@ -32,6 +32,25 @@ describe("commander rules and roles", () => {
     expect(isCommanderLegalInIdentity(redCard, commander)).toBe(false);
   });
 
+  it("rejects off-color basic lands by land subtype even when fixture color identity is empty", () => {
+    const monoBlackCommander: Card = {
+      ...fixtureCard("Tegwyll, Duke of Splendor"),
+      id: "fixture-vilis",
+      oracleId: "fixture-oracle-vilis",
+      name: "Vilis, Broker of Blood",
+      normalizedName: "vilis-broker-of-blood",
+      manaCost: "{5}{B}{B}{B}",
+      manaValue: 8,
+      colorIdentity: ["B"],
+      typeLine: "Legendary Creature - Demon",
+    };
+
+    expect(isCommanderLegalInIdentity(fixtureCard("Island"), monoBlackCommander)).toBe(false);
+    expect(isCommanderLegalInIdentity(fixtureCard("Plains"), monoBlackCommander)).toBe(false);
+    expect(isCommanderLegalInIdentity(fixtureCard("Swamp"), monoBlackCommander)).toBe(true);
+    expect(isCommanderLegalInIdentity(fixtureCard("Command Tower"), monoBlackCommander)).toBe(true);
+  });
+
   it("rejects duplicate non-basic cards", () => {
     const commander = fixtureCard("Alela, Artful Provocateur");
     const result = validateCommanderDeck({ commander, cards: [commander, fixtureCard("Sol Ring"), fixtureCard("Sol Ring")] });

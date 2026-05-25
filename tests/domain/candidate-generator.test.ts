@@ -23,6 +23,31 @@ describe("generateCommanderCandidates", () => {
     const candidates = await generateCommanderCandidates({ seedCard: fixtureCard("Bitterblossom"), ownedCards: [], targetBracket: 2, budgetUsd: 80, catalog, edhrec });
     expect(candidates[0].commanderName).toBe("Alela, Artful Provocateur");
   });
+
+  it("keeps a legal commander seed as the selected commander", async () => {
+    const seedCommander: Card = {
+      ...fixtureCard("Tegwyll, Duke of Splendor"),
+      id: "fixture-rev-tithe-extractor",
+      oracleId: "fixture-oracle-rev-tithe-extractor",
+      name: "Rev, Tithe Extractor",
+      normalizedName: "rev-tithe-extractor",
+      manaCost: "{2}{B}",
+      manaValue: 3,
+      colorIdentity: ["B"],
+      typeLine: "Legendary Creature - Human Rogue",
+      oracleText: "Whenever one or more Rogues you control deal combat damage to a player, create a Treasure token.",
+      edhrecRank: 9999,
+      imageUrl: "https://cards.scryfall.io/normal/front/rev-tithe-extractor.jpg",
+    };
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+
+    const candidates = await generateCommanderCandidates({ seedCard: seedCommander, ownedCards: [], targetBracket: 2, budgetUsd: 80, catalog, edhrec });
+
+    expect(candidates[0].commanderName).toBe("Rev, Tithe Extractor");
+    expect(candidates[0].commander.imageUrl).toContain("rev-tithe-extractor");
+  });
+
   it("filters owned commander suggestions by seed card color identity", async () => {
     const catalog = createFixtureCardCatalog();
     const edhrec = createFixtureEdhrecProvider(catalog);

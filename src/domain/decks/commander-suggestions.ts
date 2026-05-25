@@ -6,6 +6,8 @@ const byEdhrecRank = (left: Card, right: Card) => (left.edhrecRank ?? Number.MAX
 const canIncludeSeed = (commander: Card, seedCard?: Card) => !seedCard || isCommanderLegalInIdentity(seedCard, commander);
 
 export async function suggestCommanders(input: { ownedCards: Card[]; seedCard?: Card; catalog: CardCatalog }): Promise<Card[]> {
+  if (input.seedCard && canBeCommander(input.seedCard)) return [input.seedCard];
+
   const ownedCommanders = input.ownedCards
     .filter((card) => canBeCommander(card) && canIncludeSeed(card, input.seedCard))
     .sort(byEdhrecRank);

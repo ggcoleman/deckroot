@@ -117,6 +117,13 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
     addCard(card, `${card.name} adds utility or payoff density for ${commander.name}.`);
   }
 
+  while (cards.length < 100 && basics.length > 0) {
+    const basic = basics[nextBasic];
+    const added = addCard(basic, `${basic.name} backfills the list so ${commander.name} reaches a legal 100 cards.`, { ignoreBudget: true });
+    if (!added) break;
+    nextBasic = (nextBasic + 1) % basics.length;
+  }
+
   const validation = validateCommanderDeck({ commander, cards: cards.map((entry) => entry.card) });
   return { commander, cards, validation };
 }

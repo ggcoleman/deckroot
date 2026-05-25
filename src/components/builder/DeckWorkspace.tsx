@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/Badge";
 import { Meter } from "@/components/ui/Meter";
 import { ManaPip } from "@/components/ui/ManaPip";
+import { CardArt } from "@/components/builder/CardArt";
 import { ExportMenu } from "@/components/builder/ExportMenu";
 import type { AnalysisView, DeckEntryView, DeckView } from "@/components/builder/types";
 import type { DeckRole } from "@/domain/decks/role-classifier";
@@ -26,8 +27,7 @@ const featuredRoles: DeckRole[] = ["land", "ramp", "draw", "removal", "wipe", "p
 
 export function DeckWorkspace({ deck, analysis, targetBracket }: DeckWorkspaceProps) {
   const cardCount = deck?.cards.reduce((total, entry) => total + entry.quantity, 0) ?? 0;
-  const commander = deck?.commander;
-  const topRows = deck?.cards.filter((entry) => entry.card.name !== commander?.name).slice(0, 12) ?? [];
+  const deckRows = deck?.cards ?? [];
 
   return (
     <section className="deckWorkspace" aria-labelledby="deck-heading">
@@ -47,15 +47,18 @@ export function DeckWorkspace({ deck, analysis, targetBracket }: DeckWorkspacePr
       ) : (
         <>
           <section className="commanderPlate" aria-label="Selected commander">
-            <div>
-              <p className="eyebrow">Commander</p>
-              <h3>{deck.commander.name}</h3>
-              <p>{deck.commander.typeLine}</p>
-            </div>
-            <div className="manaCluster">
-              {deck.commander.colorIdentity.length > 0
-                ? deck.commander.colorIdentity.map((symbol) => <ManaPip key={symbol} symbol={symbol} />)
-                : <ManaPip symbol="C" />}
+            <CardArt card={deck.commander} size="large" />
+            <div className="commanderPlate__copy">
+              <div>
+                <p className="eyebrow">Commander</p>
+                <h3>{deck.commander.name}</h3>
+                <p>{deck.commander.typeLine}</p>
+              </div>
+              <div className="manaCluster">
+                {deck.commander.colorIdentity.length > 0
+                  ? deck.commander.colorIdentity.map((symbol) => <ManaPip key={symbol} symbol={symbol} />)
+                  : <ManaPip symbol="C" />}
+              </div>
             </div>
           </section>
 
@@ -101,8 +104,8 @@ export function DeckWorkspace({ deck, analysis, targetBracket }: DeckWorkspacePr
             </ul>
           </section>
 
-          <section className="deckTable" aria-label="Deck preview">
-            {topRows.map((entry, index) => <DeckRow key={`${entry.card.name}-${index}`} entry={entry} />)}
+          <section className="deckTable" aria-label="Deck preview" role="list">
+            {deckRows.map((entry, index) => <DeckRow key={`${entry.card.name}-${index}`} entry={entry} />)}
           </section>
 
           <p className="providerAttribution">
@@ -118,7 +121,8 @@ export function DeckWorkspace({ deck, analysis, targetBracket }: DeckWorkspacePr
 
 function DeckRow({ entry }: { entry: DeckEntryView }) {
   return (
-    <div className="deckRow">
+    <div className="deckRow" role="listitem">
+      <CardArt card={entry.card} size="small" />
       <strong>{entry.quantity} {entry.card.name}</strong>
       <span>{entry.role.join(" / ")}</span>
       <em>{entry.ownedQuantity > 0 ? "owned" : "missing"}</em>

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { ManaPip } from "@/components/ui/ManaPip";
+import { CardArt } from "@/components/builder/CardArt";
 import type { CandidateView } from "@/components/builder/types";
 
 type CandidateBoardProps = {
@@ -28,14 +29,17 @@ export function CandidateBoard({ candidates, selectedCandidateId }: CandidateBoa
           {candidates.map((candidate) => (
             <article className={`candidateItem ${candidate.id === selectedCandidateId ? "candidateItem--selected" : ""}`} key={candidate.id}>
               <div className="candidateItem__top">
-                <div>
-                  <h3>{candidate.commanderName}</h3>
-                  <p>{candidate.theme}</p>
-                </div>
-                <div className="manaCluster" aria-label={`${candidate.commanderName} color identity`}>
-                  {candidate.commander.colorIdentity.length > 0
-                    ? candidate.commander.colorIdentity.map((symbol) => <ManaPip key={symbol} symbol={symbol} />)
-                    : <ManaPip symbol="C" />}
+                <CardArt card={candidate.commander} size="medium" />
+                <div className="candidateItem__copy">
+                  <div>
+                    <h3>{candidate.commanderName}</h3>
+                    <p>{candidate.theme}</p>
+                  </div>
+                  <div className="manaCluster" aria-label={`${candidate.commanderName} color identity`}>
+                    {candidate.commander.colorIdentity.length > 0
+                      ? candidate.commander.colorIdentity.map((symbol) => <ManaPip key={symbol} symbol={symbol} />)
+                      : <ManaPip symbol="C" />}
+                  </div>
                 </div>
               </div>
               <dl className="candidateStats">
