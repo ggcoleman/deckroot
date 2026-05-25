@@ -35,6 +35,7 @@ const roleTargets: Array<{ role: DeckRole; target: number }> = [
 const cardPrice = (card: Card) => card.prices.usd ?? 0;
 const isLand = (card: Card) => classifyRole(card).includes("land");
 const byRankThenPrice = (left: Card, right: Card) => (left.edhrecRank ?? Number.MAX_SAFE_INTEGER) - (right.edhrecRank ?? Number.MAX_SAFE_INTEGER) || cardPrice(left) - cardPrice(right);
+const isCommanderPlayable = (card: Card, commander: Card) => card.legalities.commander === "legal" && isCommanderLegalInIdentity(card, commander);
 
 function entryFor(card: Card, ownedCards: Card[], sourceReason: string): DeckCardEntry {
   return {
@@ -69,15 +70,15 @@ function createAdder(cards: DeckCardEntry[], ownedCards: Card[], budget: { spent
 
 export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): Promise<AssembledDeck> {
   const commander = input.candidate.commander;
-  const allLegalCards = (await input.catalog.allCards()).filter((card) => isCommanderLegalInIdentity(card, commander));
-  const ownedLegalCards = input.ownedCards.filter((card) => card.oracleId !== commander.oracleId && isCommanderLegalInIdentity(card, commander));
+  const allLegalCards = (await input.catalog.allCards()).filter((card) => isCommanderPlayable(card, commander));
+  const ownedLegalCards = input.ownedCards.filter((card) => card.oracleId !== commander.oracleId && isCommanderPlayable(card, commander));
   const cards: DeckCardEntry[] = [entryFor(commander, input.ownedCards, `${commander.name} is the selected commander.`)];
   const budget = { spent: 0, limit: input.budgetUsd };
   const addCard = createAdder(cards, input.ownedCards, budget);
 
   for (const card of ownedLegalCards) addCard(card, `${card.name} is already owned and legal in ${commander.name}'s color identity.`, { ignoreBudget: true });
 
-  for (const card of input.candidate.recommendedCards.filter((card) => isCommanderLegalInIdentity(card, commander)).sort(byRankThenPrice)) {
+  for (const card of input.candidate.recommendedCards.filter((card) => isCommanderPlayable(card, commander)).sort(byRankThenPrice)) {
     addCard(card, `${card.name} is recommended for ${commander.name}.`);
   }
 
@@ -112,5 +113,6 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
   const validation = validateCommanderDeck({ commander, cards: cards.map((entry) => entry.card) });
   return { commander, cards, validation };
 }
+
 
 

@@ -41,5 +41,32 @@ describe("assembleCommanderDeck", () => {
     const duplicateNonBasics = [...seen.entries()].filter(([name, count]) => count > 1 && !basicLandNames.includes(name));
     expect(duplicateNonBasics).toEqual([]);
   });
+  it("filters non-Commander-legal owned and recommended cards before assembly", async () => {
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+    const bannedOwned = {
+      ...fixtureCard("Counterspell"),
+      id: "fixture-banned-owned",
+      oracleId: "fixture-oracle-banned-owned",
+      name: "Banned Owned Spell",
+      legalities: { commander: "banned" },
+    };
+    const bannedRecommended = {
+      ...fixtureCard("Phyrexian Arena"),
+      id: "fixture-banned-rec",
+      oracleId: "fixture-oracle-banned-rec",
+      name: "Banned Recommendation",
+      legalities: { commander: "banned" },
+    };
+    const ownedCards = ["Alela, Artful Provocateur", "Sol Ring", "Command Tower"].map(fixtureCard).concat(bannedOwned);
+    const [candidate] = await generateCommanderCandidates({ ownedCards, targetBracket: 2, budgetUsd: 75, catalog, edhrec });
+    const deck = await assembleCommanderDeck({ candidate: { ...candidate, recommendedCards: [bannedRecommended, ...candidate.recommendedCards] }, ownedCards, budgetUsd: 75, catalog });
+
+    expect(deck.cards.map((entry) => entry.card.name)).not.toContain("Banned Owned Spell");
+    expect(deck.cards.map((entry) => entry.card.name)).not.toContain("Banned Recommendation");
+    expect(deck.validation.ok).toBe(true);
+  });
 });
+
+
 
