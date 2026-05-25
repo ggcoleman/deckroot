@@ -1,9 +1,11 @@
-﻿import type { AssembledDeck } from "@/domain/decks/deck-assembler";
+import type { AssembledDeck } from "@/domain/decks/deck-assembler";
 
 export function exportDeckAsText(deck: AssembledDeck): string {
-  const commander = deck.cards[0];
-  const body = deck.cards.slice(1).map((entry) => `1 ${entry.card.name}`).join("\n");
-  return `Commander\n1 ${commander.card.name}\n\nDeck\n${body}\n`;
+  const body = deck.cards
+    .filter((entry) => entry.card.oracleId !== deck.commander.oracleId)
+    .map((entry) => `${entry.quantity} ${entry.card.name}`)
+    .join("\n");
+  return `Commander\n1 ${deck.commander.name}\n\nDeck\n${body}\n`;
 }
 
 export function exportDeckAsCsv(deck: AssembledDeck): string {
