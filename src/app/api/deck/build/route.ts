@@ -8,6 +8,7 @@ import { buildBuyList } from "@/domain/decks/buy-list";
 import { generateCommanderCandidates } from "@/domain/decks/candidate-generator";
 
 const maxOwnedCardNames = 500;
+const maxCardNameLength = 200;
 
 type BuildDeckBody = {
   seedCardName?: string;
@@ -18,8 +19,11 @@ type BuildDeckBody = {
 
 export async function POST(request: Request): Promise<Response> {
   const body = await readJson<BuildDeckBody>(request);
-  const ownedCardNames = Array.isArray(body.ownedCardNames) ? body.ownedCardNames : [];
-  if (ownedCardNames.length > maxOwnedCardNames) {
+  const normalized = normalizeBuildPayload(body);
+  if (!normalized.ok) {
+    return NextResponse.json({ error: "Invalid build payload" }, { status: 400 });
+  }
+  if (normalized.ownedCardNames.length > maxOwnedCardNames) {
     return NextResponse.json({ error: "Too many owned cards" }, { status: 413 });
   }
 
@@ -27,8 +31,8 @@ export async function POST(request: Request): Promise<Response> {
   const budgetUsd = body.budgetUsd ?? 75;
   const catalog = createFixtureCardCatalog();
   const edhrec = createFixtureEdhrecProvider(catalog);
-  const ownedCards = await resolveCardNames(ownedCardNames, catalog.findByName);
-  const seedCard = body.seedCardName ? await catalog.findByName(body.seedCardName) ?? undefined : undefined;
+  const ownedCards = await resolveCardNames(normalized.ownedCardNames, catalog.findByName);
+  const seedCard = normalized.seedCardName ? await catalog.findByName(normalized.seedCardName) ?? undefined : undefined;
 
   const candidates = await generateCommanderCandidates({
     seedCard,
@@ -45,6 +49,28 @@ export async function POST(request: Request): Promise<Response> {
   const buyList = deck ? buildBuyList({ deck, ownedCards, budgetUsd }) : null;
 
   return NextResponse.json({ candidates, deck, analysis, buyList });
+}
+
+function normalizeBuildPayload(body: Partial<BuildDeckBody>):
+  | { ok: true; seedCardName?: string; ownedCardNames: string[] }
+  | { ok: false } {
+  const seedCardName = body.seedCardName;
+  if (seedCardName !== undefined && (typeof seedCardName !== "string" || seedCardName.length > maxCardNameLength)) {
+    return { ok: false };
+  }
+
+  const ownedCardNames = body.ownedCardNames;
+  if (ownedCardNames === undefined) {
+    return { ok: true, seedCardName, ownedCardNames: [] };
+  }
+  if (!Array.isArray(ownedCardNames)) {
+    return { ok: false };
+  }
+  if (ownedCardNames.some((name) => typeof name !== "string" || name.length > maxCardNameLength)) {
+    return { ok: false };
+  }
+
+  return { ok: true, seedCardName, ownedCardNames };
 }
 
 async function resolveCardNames(

@@ -83,6 +83,21 @@ describe("Deckroot Commander API routes", () => {
     expect(body).toEqual({ error: "Too many owned cards" });
   });
 
+  it.each([
+    ["non-array owned cards", { ownedCardNames: "Sol Ring" }],
+    ["non-string owned card name", { ownedCardNames: [null] }],
+    ["non-string seed card", { seedCardName: {} }],
+  ])("rejects build payloads with %s", async (_caseName, payload) => {
+    const response = await buildDeck(new Request("http://deckroot.test/api/deck/build", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ error: "Invalid build payload" });
+  });
+
   it("exports a deck as text by default", async () => {
     const response = await exportDeck(new Request("http://deckroot.test/api/export", {
       method: "POST",
@@ -107,6 +122,7 @@ describe("Deckroot Commander API routes", () => {
     ["missing", {}],
     ["null", { deck: null }],
     ["invalid", { deck: { commander: null, cards: null } }],
+    ["malformed", { deck: { commander: {}, cards: [null] } }],
   ])("rejects %s export decks with a controlled 400", async (_caseName, payload) => {
     const response = await exportDeck(new Request("http://deckroot.test/api/export", {
       method: "POST",
