@@ -396,3 +396,63 @@ export function fixtureCard(name: string): Card {
   if (!card) throw new Error(`Unknown fixture card: ${name}`);
   return { ...card, colorIdentity: [...card.colorIdentity], producedMana: card.producedMana ? [...card.producedMana] : undefined };
 }
+
+export type FixtureDeckRole = "land" | "ramp" | "draw" | "removal" | "wipe" | "protection" | "recursion" | "payoff" | "utility";
+
+export type FixtureDeckEntry = {
+  card: Card;
+  quantity: 1;
+  ownedQuantity: number;
+  role: FixtureDeckRole[];
+  sourceReason: string;
+};
+
+export type FixtureDeck = {
+  commander: Card;
+  cards: FixtureDeckEntry[];
+  validation: { ok: true; value: true };
+};
+
+const roleForCard = (card: Card): FixtureDeckRole[] => {
+  if (card.typeLine.includes("Land")) return ["land"];
+  if (card.name.includes("Signet") || card.name.includes("Talisman") || card.name === "Sol Ring" || card.name === "Arcane Signet") return ["ramp"];
+  if (["Swords to Plowshares", "Path to Exile", "Counterspell"].includes(card.name)) return ["removal"];
+  if (card.name === "Damn") return ["wipe", "removal"];
+  if (["Phyrexian Arena", "Reconnaissance Mission", "Kindred Discovery", "Skullclamp"].includes(card.name)) return ["draw"];
+  if (["Alela, Artful Provocateur", "Bitterblossom", "Favorable Winds", "Anointed Procession", "Smothering Tithe", "Oona's Blackguard", "Tegwyll, Duke of Splendor"].includes(card.name)) return ["payoff"];
+  return ["utility"];
+};
+
+const fixtureDeckEntry = (name: string, ownedQuantity = 1): FixtureDeckEntry => {
+  const card = fixtureCard(name);
+  return {
+    card,
+    quantity: 1,
+    ownedQuantity,
+    role: roleForCard(card),
+    sourceReason: `${card.name} is included in the deterministic Alela fixture deck.`,
+  };
+};
+
+export function fixtureDeck(): FixtureDeck {
+  const commander = fixtureCard("Alela, Artful Provocateur");
+  const cards: FixtureDeckEntry[] = [fixtureDeckEntry(commander.name)];
+
+  for (const card of fixtureCards) {
+    if (card.name === commander.name || ["Island", "Plains", "Swamp"].includes(card.name)) continue;
+    cards.push(fixtureDeckEntry(card.name));
+  }
+
+  cards.push(fixtureDeckEntry("Island"));
+  cards.push(fixtureDeckEntry("Plains"));
+  cards.push(fixtureDeckEntry("Swamp"));
+
+  const basics = ["Island", "Plains", "Swamp"];
+  let nextBasic = 0;
+  while (cards.length < 100) {
+    cards.push(fixtureDeckEntry(basics[nextBasic], 99));
+    nextBasic = (nextBasic + 1) % basics.length;
+  }
+
+  return { commander, cards, validation: { ok: true, value: true } };
+}

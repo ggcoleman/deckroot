@@ -26,7 +26,8 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
       running += 1;
       hasStarted = true;
       lastStart = Date.now();
-      item.work()
+      Promise.resolve()
+        .then(item.work)
         .then(item.resolve)
         .catch(item.reject)
         .finally(() => {
