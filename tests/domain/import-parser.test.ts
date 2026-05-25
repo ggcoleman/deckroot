@@ -21,6 +21,20 @@ describe("owned-list import", () => {
     ]);
   });
 
+  it("keeps malformed CSV rows as warnings without blocking valid rows", () => {
+    const csv = "Name,Quantity,Set code,Collector number\nSol Ring,1,CMM,400\nBroken Row,1,ABC,123,EXTRA\nIsland,2,DMU,278";
+    const result = parseImportedList(csv);
+
+    expect(result.detectedFormat).toBe("csv");
+    expect(result.rows).toMatchObject([
+      { quantity: 1, name: "Sol Ring", setCode: "CMM", collectorNumber: "400" },
+      { quantity: 2, name: "Island", setCode: "DMU", collectorNumber: "278" }
+    ]);
+    expect(result.warnings).toEqual([
+      { line: 3, raw: "Broken Row,1,ABC,123,EXTRA", message: "Could not parse CSV card name and quantity." }
+    ]);
+  });
+
   it("keeps malformed rows as warnings", () => {
     const result = parseImportedList("1 Sol Ring\nnot a usable row ###\n1 Arcane Signet");
     expect(result.rows.map((row) => row.name)).toEqual(["Sol Ring", "Arcane Signet"]);

@@ -28,19 +28,32 @@ function looksLikeCsv(input: string): boolean {
 }
 
 function parseCsv(input: string): ImportParseResult {
-  const records = parse(input, { columns: true, skip_empty_lines: true, trim: true }) as Record<string, string>[];
   const rows: ImportedRow[] = [];
   const warnings: ImportWarning[] = [];
-  records.forEach((record, index) => {
+  const lines = input.split(/\r?\n/);
+  const headers = parseCsvLine(lines[0]) ?? [];
+
+  lines.slice(1).forEach((lineText, index) => {
+    const raw = lineText.trim();
+    const line = index + 2;
+    if (!raw) return;
+
+    const values = parseCsvLine(raw);
+    if (!values || values.length !== headers.length) {
+      warnings.push({ line, raw, message: "Could not parse CSV card name and quantity." });
+      return;
+    }
+
+    const record = Object.fromEntries(headers.map((header, headerIndex) => [header, values[headerIndex] ?? ""]));
     const name = pick(record, ["Name", "Card Name", "name", "card"]);
     const quantity = Number.parseInt(pick(record, ["Quantity", "Count", "quantity", "count"]) ?? "1", 10);
     if (!name || !Number.isFinite(quantity) || quantity <= 0) {
-      warnings.push({ line: index + 2, raw: JSON.stringify(record), message: "Could not parse CSV card name and quantity." });
+      warnings.push({ line, raw, message: "Could not parse CSV card name and quantity." });
       return;
     }
     const section = normalizeSection(pick(record, ["Section", "Category", "section"]) ?? "main");
     rows.push({
-      line: index + 2,
+      line,
       raw: JSON.stringify(record),
       quantity,
       name,
@@ -51,6 +64,15 @@ function parseCsv(input: string): ImportParseResult {
     });
   });
   return { rows, warnings, detectedFormat: "csv" };
+}
+
+function parseCsvLine(line: string): string[] | null {
+  try {
+    const records = parse(line, { skip_empty_lines: true, trim: true }) as string[][];
+    return records[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function parseText(input: string): ImportParseResult {
