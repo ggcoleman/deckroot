@@ -524,27 +524,27 @@ const fixtureDeckEntry = (name: string, ownedQuantity = 1): FixtureDeckEntry => 
 export function fixtureDeck(): FixtureDeck {
   const commander = fixtureCard("Alela, Artful Provocateur");
   const cards: FixtureDeckEntry[] = [fixtureDeckEntry(commander.name)];
+  const targetLandCount = 37;
+  const targetDeckSize = 100;
+  const basicLandNames = ["Island", "Plains", "Swamp"];
+  const nonlandSlots = targetDeckSize - cards.length - targetLandCount;
+  const nonlandCards = fixtureCards
+    .filter((card) => card.name !== commander.name && !roleForCard(card).includes("land"))
+    .slice(0, nonlandSlots);
 
-  for (const card of fixtureCards) {
-    if (card.name === commander.name || ["Island", "Plains", "Swamp"].includes(card.name)) continue;
+  for (const card of nonlandCards) {
     cards.push(fixtureDeckEntry(card.name));
   }
 
-  cards.push(fixtureDeckEntry("Island"));
-  cards.push(fixtureDeckEntry("Plains"));
-  cards.push(fixtureDeckEntry("Swamp"));
+  for (const card of fixtureCards.filter((card) => roleForCard(card).includes("land") && !basicLandNames.includes(card.name))) {
+    cards.push(fixtureDeckEntry(card.name));
+  }
 
-  const basics = ["Island", "Plains", "Swamp"];
   let nextBasic = 0;
-  while (cards.length < 100) {
-    cards.push(fixtureDeckEntry(basics[nextBasic], 99));
-    nextBasic = (nextBasic + 1) % basics.length;
+  while (cards.filter((entry) => entry.role.includes("land")).length < targetLandCount) {
+    cards.push(fixtureDeckEntry(basicLandNames[nextBasic], 99));
+    nextBasic = (nextBasic + 1) % basicLandNames.length;
   }
 
   return { commander, cards, validation: { ok: true, value: true } };
 }
-
-
-
-
-

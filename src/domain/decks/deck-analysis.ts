@@ -1,4 +1,4 @@
-﻿import type { AssembledDeck } from "@/domain/decks/deck-assembler";
+import type { AssembledDeck } from "@/domain/decks/deck-assembler";
 import type { DeckRole } from "@/domain/decks/role-classifier";
 
 export type BracketEstimate = {
@@ -45,10 +45,6 @@ export function analyzeDeck(deck: AssembledDeck): DeckAnalysis {
     }
   }
 
-  if (deck.cards.length >= 100 && roles.land > 0) {
-    roles.land = Math.max(roles.land, 34);
-  }
-
   return {
     curve,
     averageManaValue: totalCards === 0 ? 0 : roundCurrency(totalManaValue / totalCards),
@@ -92,7 +88,6 @@ function estimateBracket(input: {
     reasons.push("Confidence warning: low ramp or draw density can make the deck play less consistently than the bracket suggests.");
     ruleZeroNotes.push("Mention that ramp or draw density is below the usual 8-card benchmark.");
   }
-
   return {
     recommended,
     confidence: hasDensityWarning ? "medium" : "high",
@@ -116,4 +111,3 @@ function maxBracket(left: BracketEstimate["recommended"], right: BracketEstimate
 function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100;
 }
-
