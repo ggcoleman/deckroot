@@ -29,6 +29,10 @@ export function BuyRail({ buyList, budgetUsd }: BuyRailProps) {
           {items.map((item, index) => <BuyItem key={`${item.card.name}-${index}`} item={item} />)}
         </div>
       )}
+
+      <p className="providerAttribution">
+        Prices are estimates. Use retailer links to confirm availability and final checkout price.
+      </p>
     </aside>
   );
 }

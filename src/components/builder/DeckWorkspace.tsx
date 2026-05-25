@@ -105,6 +105,10 @@ export function DeckWorkspace({ deck, analysis, targetBracket }: DeckWorkspacePr
             {topRows.map((entry, index) => <DeckRow key={`${entry.card.name}-${index}`} entry={entry} />)}
           </section>
 
+          <p className="providerAttribution">
+            Card data and prices are powered by Scryfall. Recommendation signals may include EDHREC data. Bracket estimates are conversation aids, not official ratings.
+          </p>
+
           <ExportMenu deck={deck} />
         </>
       )}
