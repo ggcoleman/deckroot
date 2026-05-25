@@ -75,26 +75,21 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
   const cards: DeckCardEntry[] = [entryFor(commander, input.ownedCards, `${commander.name} is the selected commander.`)];
   const budget = { spent: 0, limit: input.budgetUsd };
   const addCard = createAdder(cards, input.ownedCards, budget);
+  const ownedOracleIds = new Set(ownedLegalCards.map((card) => card.oracleId));
+  const recommendedCards = input.candidate.recommendedCards.filter((card) => isCommanderPlayable(card, commander)).sort(byRankThenPrice);
+  const nonLandCards = allLegalCards.filter((card) => card.oracleId !== commander.oracleId && !isLand(card)).sort((left, right) => Number(!ownedOracleIds.has(left.oracleId)) - Number(!ownedOracleIds.has(right.oracleId)) || byRankThenPrice(left, right));
 
-  const ownedPriorityCards = ownedLegalCards.filter((card) => isLand(card) || classifyRole(card).includes("ramp")).sort(byRankThenPrice);
-  for (const card of ownedPriorityCards) addCard(card, `${card.name} is already owned and supports core mana development.`, { ignoreBudget: true });
-
-  for (const card of input.candidate.recommendedCards.filter((card) => isCommanderPlayable(card, commander)).sort(byRankThenPrice)) {
-    addCard(card, `${card.name} is recommended for ${commander.name}.`);
-  }
-
-  const nonLandCards = allLegalCards.filter((card) => card.oracleId !== commander.oracleId && !isLand(card)).sort(byRankThenPrice);
   for (const { role, target } of roleTargets) {
     for (const card of nonLandCards.filter((card) => classifyRole(card).includes(role))) {
       if (countRole(cards, role) >= target) break;
-      addCard(card, `${card.name} fills the ${role} package for ${commander.name}.`);
+      addCard(card, `${card.name} fills the ${role} package for ${commander.name}.`, { ignoreBudget: ownedOracleIds.has(card.oracleId) });
     }
   }
 
   const lands = allLegalCards.filter(isLand).sort((left, right) => Number(allowsMultipleCopies(left)) - Number(allowsMultipleCopies(right)) || byRankThenPrice(left, right));
   for (const land of lands) {
     if (countRole(cards, "land") >= 37) break;
-    addCard(land, `${land.name} supports ${commander.name}'s mana base.`);
+    addCard(land, `${land.name} supports ${commander.name}'s mana base.`, { ignoreBudget: ownedOracleIds.has(land.oracleId) });
   }
 
   const basics = lands.filter(allowsMultipleCopies);
@@ -105,7 +100,12 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
     nextBasic = (nextBasic + 1) % basics.length;
   }
 
-  const remainingOwnedCards = ownedLegalCards.filter((card) => !isLand(card) && !classifyRole(card).includes("ramp")).sort(byRankThenPrice);
+  for (const card of recommendedCards) {
+    if (cards.length >= 100) break;
+    addCard(card, `${card.name} is recommended for ${commander.name}.`);
+  }
+
+  const remainingOwnedCards = ownedLegalCards.filter((card) => !isLand(card)).sort(byRankThenPrice);
   for (const card of remainingOwnedCards) {
     if (cards.length >= 100) break;
     addCard(card, `${card.name} is already owned and fits ${commander.name}'s plan.`, { ignoreBudget: true });
@@ -117,11 +117,6 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
     addCard(card, `${card.name} adds utility or payoff density for ${commander.name}.`);
   }
 
-
   const validation = validateCommanderDeck({ commander, cards: cards.map((entry) => entry.card) });
   return { commander, cards, validation };
 }
-
-
-
-

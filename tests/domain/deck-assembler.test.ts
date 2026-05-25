@@ -87,7 +87,51 @@ describe("assembleCommanderDeck", () => {
     expect(landCount).toBeLessThanOrEqual(40);
     expect(deck.validation.ok).toBe(true);
   });
+  it("reserves room for lands when many owned ramp cards are available", async () => {
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+    const rampTemplate = fixtureCard("Arcane Signet");
+    const ownedRamp: Card[] = Array.from({ length: 110 }, (_, index) => ({
+      ...rampTemplate,
+      id: `fixture-owned-ramp-${index}`,
+      oracleId: `fixture-oracle-owned-ramp-${index}`,
+      name: `Owned Ramp ${index}`,
+      normalizedName: `owned-ramp-${index}`,
+      oracleText: "{T}: Add {U}.",
+      prices: { usd: 0, eur: null, tix: null },
+      producedMana: ["U"],
+    }));
+    const ownedCards = ["Alela, Artful Provocateur", "Sol Ring", "Command Tower"].map(fixtureCard).concat(ownedRamp);
+    const [candidate] = await generateCommanderCandidates({ ownedCards, targetBracket: 2, budgetUsd: 75, catalog, edhrec });
+    const deck = await assembleCommanderDeck({ candidate, ownedCards, budgetUsd: 75, catalog });
+    const landCount = deck.cards.filter((entry) => entry.role.includes("land")).length;
+    expect(landCount).toBeGreaterThanOrEqual(34);
+    expect(landCount).toBeLessThanOrEqual(40);
+    expect(deck.validation.ok).toBe(true);
+  });
+
+  it("reserves room for lands when recommendations are large", async () => {
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+    const recommendationTemplate = fixtureCard("Favorable Winds");
+    const recommendedCards: Card[] = Array.from({ length: 110 }, (_, index) => ({
+      ...recommendationTemplate,
+      id: `fixture-recommended-filler-${index}`,
+      oracleId: `fixture-oracle-recommended-filler-${index}`,
+      name: `Recommended Filler ${index}`,
+      normalizedName: `recommended-filler-${index}`,
+      prices: { usd: 0, eur: null, tix: null },
+    }));
+    const ownedCards = ["Alela, Artful Provocateur", "Sol Ring", "Command Tower"].map(fixtureCard);
+    const [candidate] = await generateCommanderCandidates({ ownedCards, targetBracket: 2, budgetUsd: 75, catalog, edhrec });
+    const deck = await assembleCommanderDeck({ candidate: { ...candidate, recommendedCards: [...recommendedCards, ...candidate.recommendedCards] }, ownedCards, budgetUsd: 75, catalog });
+    const landCount = deck.cards.filter((entry) => entry.role.includes("land")).length;
+    expect(landCount).toBeGreaterThanOrEqual(34);
+    expect(landCount).toBeLessThanOrEqual(40);
+    expect(deck.validation.ok).toBe(true);
+  });
 });
+
 
 
 
