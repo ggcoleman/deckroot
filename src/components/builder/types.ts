@@ -2,6 +2,9 @@ import type { Color } from "@/domain/cards/types";
 import type { DeckRole } from "@/domain/decks/role-classifier";
 
 export type CardView = {
+  id: string;
+  oracleId: string;
+  normalizedName: string;
   name: string;
   manaCost: string;
   manaValue: number;

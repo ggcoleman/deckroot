@@ -16,6 +16,7 @@ export function BuilderShell() {
   const [importSummary, setImportSummary] = useState<string>();
   const [status, setStatus] = useState("Ready to build from a seed card or owned pile.");
   const [isBusy, setIsBusy] = useState(false);
+  const statusChip = isBusy ? "Working" : buildResult?.deck ? "Complete" : "Ready";
 
   async function buildDeck(options: { seed?: string; ownedCardNames?: string[] } = {}) {
     setIsBusy(true);
@@ -83,7 +84,7 @@ export function BuilderShell() {
 
       <section className="centerStack" aria-label="Deck build workspace">
         <div className="statusStrip">
-          <span>{isBusy ? "Working" : "Idle"}</span>
+          <span>{statusChip}</span>
           <p>{status}</p>
         </div>
         <CandidateBoard candidates={buildResult?.candidates ?? []} selectedCandidateId={selectedCandidateId} />

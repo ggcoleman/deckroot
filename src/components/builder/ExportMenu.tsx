@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DeckView } from "@/components/builder/types";
 
 type ExportMenuProps = {
@@ -9,9 +9,21 @@ type ExportMenuProps = {
 
 type ExportFormat = "text" | "csv";
 
+const readyStatus = "Choose an export format when the list is ready.";
+
 export function ExportMenu({ deck }: ExportMenuProps) {
   const [content, setContent] = useState("");
-  const [status, setStatus] = useState("Choose an export format when the list is ready.");
+  const [status, setStatus] = useState(readyStatus);
+  const deckIdentity = useMemo(() => {
+    if (!deck) return "no-deck";
+    const cardCount = deck.cards.reduce((total, entry) => total + entry.quantity, 0);
+    return `${deck.commander.oracleId}-${cardCount}`;
+  }, [deck]);
+
+  useEffect(() => {
+    setContent("");
+    setStatus(deck ? readyStatus : "Build a deck before exporting.");
+  }, [deck, deckIdentity]);
 
   async function exportDeck(format: ExportFormat) {
     if (!deck) {

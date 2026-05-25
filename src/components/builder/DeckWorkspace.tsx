@@ -49,7 +49,7 @@ export function DeckWorkspace({ deck, analysis, targetBracket }: DeckWorkspacePr
           <section className="commanderPlate" aria-label="Selected commander">
             <div>
               <p className="eyebrow">Commander</p>
-              <h3>Selected commander</h3>
+              <h3>{deck.commander.name}</h3>
               <p>{deck.commander.typeLine}</p>
             </div>
             <div className="manaCluster">

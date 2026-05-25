@@ -7,9 +7,15 @@ test("builds a Commander deck from a seed card", async ({ page }) => {
   await page.getByRole("button", { name: "Use Bitterblossom" }).click();
   await page.getByRole("button", { name: "Build deck" }).click();
 
-  await expect(page.getByText("Alela, Artful Provocateur")).toBeVisible();
+  const deckWorkspace = page.getByLabel("Deck workspace");
+  await expect(deckWorkspace.getByRole("heading", { name: "Alela, Artful Provocateur" })).toBeVisible();
   await expect(page.getByText("100 cards")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Buy first" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Text" }).click();
+  const exportedDeck = page.getByLabel("Exported deck content");
+  await expect(exportedDeck).toHaveValue(/Commander[\s\S]*1 Alela, Artful Provocateur/);
+  await expect(exportedDeck).toHaveValue(/\nDeck\n/);
 });
 
 test("imports owned cards and shows ranked candidates", async ({ page }) => {
