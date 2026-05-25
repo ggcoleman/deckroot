@@ -1,5 +1,6 @@
 import type { Color } from "@/domain/cards/types";
 import type { DeckRole } from "@/domain/decks/role-classifier";
+import type { Result } from "@/domain/shared/result";
 
 export type CardView = {
   id: string;
@@ -40,11 +41,7 @@ export type DeckEntryView = {
 export type DeckView = {
   commander: CardView;
   cards: DeckEntryView[];
-  validation: {
-    legal: boolean;
-    errors: string[];
-    warnings: string[];
-  };
+  validation: Result<true>;
 };
 
 export type AnalysisView = {

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import type { Card } from "@/domain/cards/types";
 import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
 import { createFixtureEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
@@ -6,6 +6,8 @@ import { assembleCommanderDeck } from "@/domain/decks/deck-assembler";
 import { analyzeDeck } from "@/domain/decks/deck-analysis";
 import { buildBuyList } from "@/domain/decks/buy-list";
 import { generateCommanderCandidates } from "@/domain/decks/candidate-generator";
+
+const maxOwnedCardNames = 500;
 
 type BuildDeckBody = {
   seedCardName?: string;
@@ -16,11 +18,16 @@ type BuildDeckBody = {
 
 export async function POST(request: Request): Promise<Response> {
   const body = await readJson<BuildDeckBody>(request);
+  const ownedCardNames = Array.isArray(body.ownedCardNames) ? body.ownedCardNames : [];
+  if (ownedCardNames.length > maxOwnedCardNames) {
+    return NextResponse.json({ error: "Too many owned cards" }, { status: 413 });
+  }
+
   const targetBracket = body.targetBracket ?? 2;
   const budgetUsd = body.budgetUsd ?? 75;
   const catalog = createFixtureCardCatalog();
   const edhrec = createFixtureEdhrecProvider(catalog);
-  const ownedCards = await resolveCardNames(body.ownedCardNames ?? [], catalog.findByName);
+  const ownedCards = await resolveCardNames(ownedCardNames, catalog.findByName);
   const seedCard = body.seedCardName ? await catalog.findByName(body.seedCardName) ?? undefined : undefined;
 
   const candidates = await generateCommanderCandidates({

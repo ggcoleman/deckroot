@@ -25,7 +25,9 @@ npm run test:e2e
 ```
 
 ## Provider Modes
-The MVP defaults to fixture-backed providers. Copy `.env.example` to `.env.local` and set provider modes when live API usage is enabled.
+The current MVP runtime and API routes use fixture-backed demo providers for deterministic local development and testing. The Scryfall and EDHREC live adapter code, cache settings, and environment variables are preparatory/experimental; setting provider environment variables does not switch the app runtime to live services yet.
+
+Live provider mode still needs provider factory wiring, cache configuration, permission/compliance review, and production deployment work before it is safe to enable outside experiments.
 ```bash
 DECKROOT_SCRYFALL_MODE=fixture
 DECKROOT_EDHREC_MODE=fixture

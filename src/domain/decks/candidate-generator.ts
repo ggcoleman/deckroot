@@ -86,4 +86,3 @@ export async function generateCommanderCandidates(input: GenerateCommanderCandid
 
   return candidates.sort((left, right) => right.score - left.score || (left.commander.edhrecRank ?? Number.MAX_SAFE_INTEGER) - (right.commander.edhrecRank ?? Number.MAX_SAFE_INTEGER));
 }
-

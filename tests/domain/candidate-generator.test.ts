@@ -84,4 +84,3 @@ describe("generateCommanderCandidates", () => {
     expect(candidate.missingEstimatedUsd).toBe(0);
   });
 });
-

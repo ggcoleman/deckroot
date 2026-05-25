@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { GET as searchCards } from "@/app/api/cards/search/route";
 import { POST as importCards } from "@/app/api/import/route";
 import { POST as buildDeck } from "@/app/api/deck/build/route";
@@ -32,6 +32,28 @@ describe("Deckroot Commander API routes", () => {
     expect(body.resolved.unresolved.map((row: { name: string }) => row.name)).toEqual(["Missing Card"]);
   });
 
+  it("rejects import payloads over the anonymous input length cap", async () => {
+    const response = await importCards(new Request("http://deckroot.test/api/import", {
+      method: "POST",
+      body: JSON.stringify({ input: "x".repeat(50_001) }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(body).toEqual({ error: "Import input is too large" });
+  });
+
+  it("rejects imports that parse over the anonymous row cap", async () => {
+    const response = await importCards(new Request("http://deckroot.test/api/import", {
+      method: "POST",
+      body: JSON.stringify({ input: Array.from({ length: 501 }, () => "1 Sol Ring").join("\n") }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(body).toEqual({ error: "Import has too many rows" });
+  });
+
   it("builds a deck candidate with analysis and a buy list", async () => {
     const response = await buildDeck(new Request("http://deckroot.test/api/deck/build", {
       method: "POST",
@@ -48,6 +70,17 @@ describe("Deckroot Commander API routes", () => {
     expect(body.deck.commander.name).toBe(body.candidates[0].commanderName);
     expect(body.analysis.bracket.recommended).toBeGreaterThanOrEqual(2);
     expect(body.buyList.items.length).toBeGreaterThan(0);
+  });
+
+  it("rejects build payloads over the anonymous owned-card cap", async () => {
+    const response = await buildDeck(new Request("http://deckroot.test/api/deck/build", {
+      method: "POST",
+      body: JSON.stringify({ ownedCardNames: Array.from({ length: 501 }, (_, index) => `Card ${index}`) }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(413);
+    expect(body).toEqual({ error: "Too many owned cards" });
   });
 
   it("exports a deck as text by default", async () => {
@@ -69,6 +102,19 @@ describe("Deckroot Commander API routes", () => {
 
     expect(body.content).toContain("Quantity,Name,Role,Owned Quantity,Estimated USD");
   });
+
+  it.each([
+    ["missing", {}],
+    ["null", { deck: null }],
+    ["invalid", { deck: { commander: null, cards: null } }],
+  ])("rejects %s export decks with a controlled 400", async (_caseName, payload) => {
+    const response = await exportDeck(new Request("http://deckroot.test/api/export", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ error: "Deck is required" });
+  });
 });
-
-

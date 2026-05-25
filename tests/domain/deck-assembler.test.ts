@@ -131,8 +131,3 @@ describe("assembleCommanderDeck", () => {
     expect(deck.validation.ok).toBe(true);
   });
 });
-
-
-
-
-
