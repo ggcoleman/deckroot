@@ -5,6 +5,8 @@ import { generateCommanderCandidates } from "@/domain/decks/candidate-generator"
 import { assembleCommanderDeck } from "@/domain/decks/deck-assembler";
 import { fixtureCard } from "@/domain/decks/demo-fixtures";
 
+const basicLandNames = ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"];
+
 describe("assembleCommanderDeck", () => {
   it("builds exactly 100 legal cards including commander", async () => {
     const catalog = createFixtureCardCatalog();
@@ -16,4 +18,28 @@ describe("assembleCommanderDeck", () => {
     expect(deck.cards[0].card.name).toBe("Alela, Artful Provocateur");
     expect(deck.validation.ok).toBe(true);
   });
+
+  it("keeps fixture assembly near the 37-land target", async () => {
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+    const ownedCards = ["Alela, Artful Provocateur", "Sol Ring", "Command Tower"].map(fixtureCard);
+    const [candidate] = await generateCommanderCandidates({ ownedCards, targetBracket: 2, budgetUsd: 75, catalog, edhrec });
+    const deck = await assembleCommanderDeck({ candidate, ownedCards, budgetUsd: 75, catalog });
+    const landCount = deck.cards.filter((entry) => entry.role.includes("land")).length;
+    expect(landCount).toBeGreaterThanOrEqual(34);
+    expect(landCount).toBeLessThanOrEqual(40);
+  });
+
+  it("does not duplicate non-basic cards", async () => {
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+    const ownedCards = ["Alela, Artful Provocateur", "Sol Ring", "Command Tower"].map(fixtureCard);
+    const [candidate] = await generateCommanderCandidates({ ownedCards, targetBracket: 2, budgetUsd: 75, catalog, edhrec });
+    const deck = await assembleCommanderDeck({ candidate, ownedCards, budgetUsd: 75, catalog });
+    const seen = new Map<string, number>();
+    for (const entry of deck.cards) seen.set(entry.card.name, (seen.get(entry.card.name) ?? 0) + 1);
+    const duplicateNonBasics = [...seen.entries()].filter(([name, count]) => count > 1 && !basicLandNames.includes(name));
+    expect(duplicateNonBasics).toEqual([]);
+  });
 });
+

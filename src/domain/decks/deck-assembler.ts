@@ -62,7 +62,7 @@ function createAdder(cards: DeckCardEntry[], ownedCards: Card[], budget: { spent
 
     cards.push(entryFor(card, ownedCards, sourceReason));
     if (!allowsMultipleCopies(card)) singletonNames.add(card.oracleId);
-    budget.spent += price;
+    if (!options.ignoreBudget) budget.spent += price;
     return true;
   };
 }
@@ -108,12 +108,9 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
     addCard(card, `${card.name} adds utility or payoff density for ${commander.name}.`);
   }
 
-  nextBasic = 0;
-  while (cards.length < 100 && basics.length > 0) {
-    addCard(basics[nextBasic], `${basics[nextBasic].name} fills the remaining legal deck slots.`, { ignoreBudget: true });
-    nextBasic = (nextBasic + 1) % basics.length;
-  }
 
   const validation = validateCommanderDeck({ commander, cards: cards.map((entry) => entry.card) });
   return { commander, cards, validation };
 }
+
+
