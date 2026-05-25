@@ -4,6 +4,7 @@ import { createFixtureEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
 import { generateCommanderCandidates } from "@/domain/decks/candidate-generator";
 import { assembleCommanderDeck } from "@/domain/decks/deck-assembler";
 import { fixtureCard } from "@/domain/decks/demo-fixtures";
+import type { Card } from "@/domain/cards/types";
 
 const basicLandNames = ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"];
 
@@ -66,7 +67,28 @@ describe("assembleCommanderDeck", () => {
     expect(deck.cards.map((entry) => entry.card.name)).not.toContain("Banned Recommendation");
     expect(deck.validation.ok).toBe(true);
   });
+  it("reserves room for lands when many owned legal nonlands are available", async () => {
+    const catalog = createFixtureCardCatalog();
+    const edhrec = createFixtureEdhrecProvider(catalog);
+    const fillerTemplate = fixtureCard("Favorable Winds");
+    const ownedNonlands: Card[] = Array.from({ length: 110 }, (_, index) => ({
+      ...fillerTemplate,
+      id: `fixture-owned-filler-${index}`,
+      oracleId: `fixture-oracle-owned-filler-${index}`,
+      name: `Owned Filler ${index}`,
+      normalizedName: `owned-filler-${index}`,
+      prices: { usd: 0, eur: null, tix: null },
+    }));
+    const ownedCards = ["Alela, Artful Provocateur", "Sol Ring", "Command Tower"].map(fixtureCard).concat(ownedNonlands);
+    const [candidate] = await generateCommanderCandidates({ ownedCards, targetBracket: 2, budgetUsd: 75, catalog, edhrec });
+    const deck = await assembleCommanderDeck({ candidate, ownedCards, budgetUsd: 75, catalog });
+    const landCount = deck.cards.filter((entry) => entry.role.includes("land")).length;
+    expect(landCount).toBeGreaterThanOrEqual(34);
+    expect(landCount).toBeLessThanOrEqual(40);
+    expect(deck.validation.ok).toBe(true);
+  });
 });
+
 
 
 

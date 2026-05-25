@@ -76,7 +76,8 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
   const budget = { spent: 0, limit: input.budgetUsd };
   const addCard = createAdder(cards, input.ownedCards, budget);
 
-  for (const card of ownedLegalCards) addCard(card, `${card.name} is already owned and legal in ${commander.name}'s color identity.`, { ignoreBudget: true });
+  const ownedPriorityCards = ownedLegalCards.filter((card) => isLand(card) || classifyRole(card).includes("ramp")).sort(byRankThenPrice);
+  for (const card of ownedPriorityCards) addCard(card, `${card.name} is already owned and supports core mana development.`, { ignoreBudget: true });
 
   for (const card of input.candidate.recommendedCards.filter((card) => isCommanderPlayable(card, commander)).sort(byRankThenPrice)) {
     addCard(card, `${card.name} is recommended for ${commander.name}.`);
@@ -98,9 +99,16 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
 
   const basics = lands.filter(allowsMultipleCopies);
   let nextBasic = 0;
-  while (countRole(cards, "land") < 37 && basics.length > 0) {
-    addCard(basics[nextBasic], `${basics[nextBasic].name} fills out the legal basic land base.`, { ignoreBudget: true });
+  while (countRole(cards, "land") < 37 && basics.length > 0 && cards.length < 100) {
+    const added = addCard(basics[nextBasic], `${basics[nextBasic].name} fills out the legal basic land base.`, { ignoreBudget: true });
+    if (!added) break;
     nextBasic = (nextBasic + 1) % basics.length;
+  }
+
+  const remainingOwnedCards = ownedLegalCards.filter((card) => !isLand(card) && !classifyRole(card).includes("ramp")).sort(byRankThenPrice);
+  for (const card of remainingOwnedCards) {
+    if (cards.length >= 100) break;
+    addCard(card, `${card.name} is already owned and fits ${commander.name}'s plan.`, { ignoreBudget: true });
   }
 
   const utilityCards = nonLandCards.filter((card) => classifyRole(card).some((role) => role === "utility" || role === "payoff" || role === "protection" || role === "recursion"));
@@ -113,6 +121,7 @@ export async function assembleCommanderDeck(input: AssembleCommanderDeckInput): 
   const validation = validateCommanderDeck({ commander, cards: cards.map((entry) => entry.card) });
   return { commander, cards, validation };
 }
+
 
 
 

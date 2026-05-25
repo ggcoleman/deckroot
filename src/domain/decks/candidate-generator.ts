@@ -29,6 +29,7 @@ type GenerateCommanderCandidatesInput = {
 
 const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const cardPrice = (card: Card) => card.prices.usd ?? 0;
+const isCommanderPlayable = (card: Card, commander: Card) => card.legalities.commander === "legal" && isCommanderLegalInIdentity(card, commander);
 
 function inferTheme(commander: Card, recommendedCards: Card[]): string {
   const text = [commander, ...recommendedCards]
@@ -44,18 +45,19 @@ function inferTheme(commander: Card, recommendedCards: Card[]): string {
 
 export async function generateCommanderCandidates(input: GenerateCommanderCandidatesInput): Promise<DeckCandidate[]> {
   const commanders = await suggestCommanders({ ownedCards: input.ownedCards, seedCard: input.seedCard, catalog: input.catalog });
-  const ownedNames = new Set(input.ownedCards.map((card) => card.normalizedName));
+
   const candidates: DeckCandidate[] = [];
 
   for (const commander of commanders) {
-    const legalOwned = input.ownedCards.filter((card) => isCommanderLegalInIdentity(card, commander));
+    const legalOwned = input.ownedCards.filter((card) => isCommanderPlayable(card, commander));
+    const ownedNames = new Set(legalOwned.map((card) => card.normalizedName));
     const recommendations = await input.edhrec.getCommanderRecommendations({
       commanderName: commander.name,
       seedNames: [input.seedCard?.name, ...input.ownedCards.map((card) => card.name)].filter((name): name is string => Boolean(name)),
     });
     const recommendedCards = recommendations.cards
       .map((recommendation) => recommendation.card)
-      .filter((card) => isCommanderLegalInIdentity(card, commander));
+      .filter((card) => isCommanderPlayable(card, commander));
     const recommendedNames = new Set(recommendedCards.map((card) => card.normalizedName));
     const ownedSynergyCount = legalOwned.filter((card) => card.oracleId !== commander.oracleId && recommendedNames.has(card.normalizedName)).length;
     const missingEstimatedUsd = recommendedCards
@@ -84,3 +86,4 @@ export async function generateCommanderCandidates(input: GenerateCommanderCandid
 
   return candidates.sort((left, right) => right.score - left.score || (left.commander.edhrecRank ?? Number.MAX_SAFE_INTEGER) - (right.commander.edhrecRank ?? Number.MAX_SAFE_INTEGER));
 }
+
