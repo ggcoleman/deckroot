@@ -1,4 +1,5 @@
-﻿import type { Card } from "@/domain/cards/types";
+﻿import { NextResponse } from "next/server";
+import type { Card } from "@/domain/cards/types";
 import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
 import { createFixtureEdhrecProvider } from "@/domain/edhrec/edhrec-provider";
 import { assembleCommanderDeck } from "@/domain/decks/deck-assembler";
@@ -36,7 +37,7 @@ export async function POST(request: Request): Promise<Response> {
   const analysis = deck ? analyzeDeck(deck) : null;
   const buyList = deck ? buildBuyList({ deck, ownedCards, budgetUsd }) : null;
 
-  return Response.json({ candidates, deck, analysis, buyList });
+  return NextResponse.json({ candidates, deck, analysis, buyList });
 }
 
 async function resolveCardNames(

@@ -1,4 +1,5 @@
-﻿import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
+﻿import { NextResponse } from "next/server";
+import { createFixtureCardCatalog } from "@/domain/cards/card-catalog";
 import { resolveImportedRows } from "@/domain/import/import-resolver";
 import { parseImportedList } from "@/domain/import/import-parser";
 
@@ -11,7 +12,7 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = parseImportedList(body.input ?? "");
   const resolved = await resolveImportedRows(parsed.rows, createFixtureCardCatalog());
 
-  return Response.json({ parsed, resolved });
+  return NextResponse.json({ parsed, resolved });
 }
 
 async function readJson<T>(request: Request): Promise<Partial<T>> {

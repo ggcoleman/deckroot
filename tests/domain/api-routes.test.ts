@@ -50,6 +50,16 @@ describe("Deckroot Commander API routes", () => {
     expect(body.buyList.items.length).toBeGreaterThan(0);
   });
 
+  it("exports a deck as text by default", async () => {
+    const response = await exportDeck(new Request("http://deckroot.test/api/export", {
+      method: "POST",
+      body: JSON.stringify({ deck: fixtureDeck() }),
+    }));
+    const body = await response.json();
+
+    expect(body.content).toContain("Commander\n1 Alela, Artful Provocateur");
+  });
+
   it("exports a deck as CSV when requested", async () => {
     const response = await exportDeck(new Request("http://deckroot.test/api/export", {
       method: "POST",
@@ -60,4 +70,5 @@ describe("Deckroot Commander API routes", () => {
     expect(body.content).toContain("Quantity,Name,Role,Owned Quantity,Estimated USD");
   });
 });
+
 
