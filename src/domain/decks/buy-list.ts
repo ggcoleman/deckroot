@@ -1,4 +1,4 @@
-﻿import type { Card } from "@/domain/cards/types";
+import type { Card } from "@/domain/cards/types";
 import type { AssembledDeck, DeckCardEntry } from "@/domain/decks/deck-assembler";
 
 export type BuyListPriority = "Required" | "High-impact" | "Optimization" | "Nice-to-have";
@@ -38,10 +38,9 @@ export function buildBuyList(input: BuildBuyListInput): BuyList {
 
   let totalSelectedUsd = 0;
   for (const item of items) {
-    if (totalSelectedUsd + item.estimatedUsd <= input.budgetUsd) {
-      item.selectedWithinBudget = true;
-      totalSelectedUsd += item.estimatedUsd;
-    }
+    if (totalSelectedUsd + item.estimatedUsd > input.budgetUsd) break;
+    item.selectedWithinBudget = true;
+    totalSelectedUsd += item.estimatedUsd;
   }
 
   return { items, totalSelectedUsd: roundCurrency(totalSelectedUsd) };
